@@ -12,7 +12,7 @@ from auth import (
     create_access_token, verify_token,
     require_admin, ADMIN_USERNAME, ADMIN_PASSWORD,
 )
-from ai import generate_document_content
+from ai import generate_document
 
 load_dotenv()
 
@@ -110,21 +110,21 @@ def generate():
     if not is_admin:
         return _json({"detail": err}, 401)
     body = flask_request.get_json(silent=True) or {}
-    required = ["title", "doc_type", "issued_date", "recipients", "sender", "key_points"]
+    # AI가 유추 불가능한 필드만 필수로 받음 (제목·유형은 AI가 결정)
+    required = ["issued_date", "recipients", "sender", "key_points"]
     for field in required:
         if not body.get(field):
             return _json({"detail": f"{field} 필드가 필요합니다"}, 400)
     try:
-        html = generate_document_content(
-            title=body["title"],
-            doc_type=body["doc_type"],
+        result = generate_document(
             issued_date=body["issued_date"],
             recipients=body["recipients"],
             sender=body["sender"],
             key_points=body["key_points"],
             cc=body.get("cc", ""),
         )
-        return _json({"content": html})
+        # result = {"title": ..., "doc_type": ..., "content": ...}
+        return _json(result)
     except Exception as e:
         return _json({"detail": f"AI 생성 오류: {str(e)}"}, 500)
 

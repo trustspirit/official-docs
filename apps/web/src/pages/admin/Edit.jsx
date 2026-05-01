@@ -19,14 +19,15 @@ export default function Edit() {
     getDocument(id)
       .then((doc) => {
         setForm({
-          slug: doc.slug,
-          title: doc.title,
-          doc_type: doc.doc_type,
           issued_date: doc.issued_date,
           recipients: doc.recipients,
           cc: doc.cc || '',
           sender: doc.sender,
           key_points: doc.raw_input || '',
+          // AI가 생성한 필드 (수정 가능)
+          title: doc.title,
+          doc_type: doc.doc_type,
+          slug: doc.slug,
           is_published: doc.is_published,
           content: doc.content,
         })
@@ -43,19 +44,18 @@ export default function Edit() {
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
-  const handleGenerate = async () => {
+  const handleRegenerate = async () => {
     setError('')
     setGenerating(true)
     try {
       const res = await generateContent({
-        title: form.title,
-        doc_type: form.doc_type,
         issued_date: form.issued_date,
         recipients: form.recipients,
         cc: form.cc,
         sender: form.sender,
         key_points: form.key_points,
       })
+      setForm((f) => ({ ...f, title: res.title, doc_type: res.doc_type }))
       if (editorRef.current) editorRef.current.innerHTML = res.content
     } catch (e) {
       setError(e.message)
@@ -105,22 +105,17 @@ export default function Edit() {
         {error && <div className="alert alert-error">{error}</div>}
 
         <div className="admin-wrapper">
-          <div className="form-group">
-            <label className="form-label">제목 *</label>
-            <input className="form-input" value={form.title} onChange={set('title')} />
-          </div>
+          <p style={{ fontSize: '0.82rem', color: '#666', marginBottom: '1.2rem' }}>
+            정보를 수정한 뒤 AI로 재생성하거나, 아래 본문을 직접 편집할 수 있습니다.
+          </p>
 
+          {/* AI가 유추 불가한 필드 */}
           <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">문서 유형 *</label>
-              <select className="form-select" value={form.doc_type} onChange={set('doc_type')}>
-                {DOC_TYPES.map((t) => <option key={t}>{t}</option>)}
-              </select>
-            </div>
             <div className="form-group">
               <label className="form-label">발행일 *</label>
               <input className="form-input" type="date" value={form.issued_date} onChange={set('issued_date')} />
             </div>
+            <div className="form-group" />
           </div>
 
           <div className="form-row">
@@ -129,7 +124,7 @@ export default function Edit() {
               <input className="form-input" value={form.recipients} onChange={set('recipients')} />
             </div>
             <div className="form-group">
-              <label className="form-label">참조</label>
+              <label className="form-label">참조 <span style={{ fontWeight: 400, color: '#999' }}>(선택)</span></label>
               <input className="form-input" value={form.cc} onChange={set('cc')} />
             </div>
           </div>
@@ -140,18 +135,32 @@ export default function Edit() {
           </div>
 
           <div className="form-group">
-            <label className="form-label">핵심 내용 (AI 재생성 시 사용)</label>
+            <label className="form-label">핵심 내용</label>
             <textarea className="form-textarea" value={form.key_points} onChange={set('key_points')} rows={4} />
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.2rem' }}>
-            <button className="btn btn-secondary" onClick={handleGenerate} disabled={generating}>
-              {generating ? <><span className="spinner" /> 생성 중…</> : '↺ AI로 본문 재생성'}
-            </button>
+          <button className="btn btn-secondary" onClick={handleRegenerate} disabled={generating} style={{ marginBottom: '1.5rem' }}>
+            {generating ? <><span className="spinner" /> 생성 중…</> : '↺ AI로 공문 재생성'}
+          </button>
+
+          <hr style={{ border: 'none', borderTop: '1px solid #ebe8e3', margin: '0 0 1.5rem' }} />
+
+          {/* AI가 생성한 필드 (편집 가능) */}
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">제목</label>
+              <input className="form-input" value={form.title} onChange={set('title')} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">문서 유형</label>
+              <select className="form-select" value={form.doc_type} onChange={set('doc_type')}>
+                {DOC_TYPES.map((t) => <option key={t}>{t}</option>)}
+              </select>
+            </div>
           </div>
 
           <div className="form-group">
-            <label className="form-label">공문 본문 (직접 편집 가능)</label>
+            <label className="form-label">공문 본문</label>
             <div
               ref={editorRef}
               className="body-editor"
@@ -183,7 +192,7 @@ export default function Edit() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
               {saving ? <><span className="spinner" /> 저장 중…</> : '저장하기'}
             </button>
