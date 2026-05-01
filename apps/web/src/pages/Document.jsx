@@ -57,7 +57,8 @@ export default function Document() {
           <div className="doc-title-block">
             <h1 className="doc-title">{doc.title}</h1>
             <div className="doc-type-row">
-              <span className="badge">{doc.doc_type}</span>
+              <span className="doc-type-label">{doc.doc_type}</span>
+              <span className="doc-type-sep">|</span>
               <span>{doc.issued_date}</span>
             </div>
             <dl className="doc-meta-list">

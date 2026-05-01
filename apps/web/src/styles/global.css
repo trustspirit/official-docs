@@ -4,7 +4,7 @@
 html { font-size: 15px; }
 
 body {
-  font-family: 'Noto Sans KR', sans-serif;
+  font-family: "Ensign:Sans", Roboto, Arial, sans-serif;
   background: #f7f5f0;
   color: #1a1a1a;
   line-height: 1.7;
@@ -327,10 +327,10 @@ input, textarea, select { font-family: inherit; }
 
 .doc-header {
   display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 2rem;
-  align-items: start;
-  margin-bottom: 1.5rem;
+  grid-template-columns: 120px 1fr;
+  gap: 0;
+  align-items: center;
+  margin-bottom: 1.2rem;
 }
 
 .doc-logo {
@@ -338,75 +338,92 @@ input, textarea, select { font-family: inherit; }
   flex-direction: column;
   align-items: center;
   gap: 0.4rem;
+  padding-right: 1.8rem;
 }
 .doc-logo img {
-  width: 88px;
-  height: 88px;
+  width: 80px;
+  height: 80px;
   object-fit: contain;
 }
 .doc-logo__name {
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   color: #555;
   text-align: center;
-  line-height: 1.4;
+  line-height: 1.5;
   word-break: keep-all;
 }
 
-.doc-title-block {}
+.doc-title-block {
+  padding-left: 1.8rem;
+}
 
 .doc-title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #1a3a5c;
-  margin-bottom: 0.5rem;
+  color: #212225;
+  font-family: "Ensign:Serif", Maruburi, Georgia, serif;
+  margin-bottom: 0.3rem;
   line-height: 1.3;
 }
 
 .doc-type-row {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  margin-bottom: 0.8rem;
+  gap: 0;
+  margin-bottom: 0.5rem;
   font-size: 0.82rem;
   color: #555;
+  font-family: "Ensign:Sans", Roboto, Arial, sans-serif;
 }
 
-.doc-meta-list { font-size: 0.85rem; }
+.doc-type-label {
+  font-weight: 600;
+  color: rgb(189, 0, 87);
+}
+
+.doc-type-sep {
+  margin: 0 0.5rem;
+  color: #aaa;
+}
+
+.doc-meta-list { font-size: 0.85rem; margin-top: 0.6rem; }
 .doc-meta-list dt {
   display: inline;
-  font-weight: 700;
+  font-weight: 400;
   color: #1a1a1a;
+  font-family: "Ensign:Sans", Roboto, Arial, sans-serif;
 }
 .doc-meta-list dd {
   display: inline;
-  margin-left: 0.4rem;
+  margin-left: 0.5rem;
   color: #333;
+  font-family: "Ensign:Serif", Maruburi, Georgia, serif;
 }
 .doc-meta-list .meta-row {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.3rem;
+  gap: 0;
+  margin-bottom: 0.15rem;
 }
 
 .doc-divider {
   border: none;
-  border-top: 2px solid #1a3a5c;
-  margin: 1.5rem 0;
+  border-top: 1px solid #ccc;
+  margin: 1.2rem 0 1.5rem;
 }
 
-.doc-body { font-size: 0.95rem; line-height: 1.9; color: #222; }
+.doc-body { font-size: 0.95rem; line-height: 1.9; color: #212225; font-family: "Ensign:Serif", Maruburi, Georgia, serif; }
 .doc-body h2 {
-  font-size: 1.05rem;
+  font-size: 1.2rem;
   font-weight: 700;
-  color: #1a3a5c;
-  border-bottom: 1px solid #c8d8e8;
-  padding-bottom: 0.35rem;
-  margin: 1.6rem 0 0.8rem;
+  color: #000000;
+  font-family: "Ensign:Sans", Roboto, Arial, sans-serif;
+  margin: 1.8rem 0 0.7rem;
 }
 .doc-body h3 {
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 700;
-  color: #1a1a1a;
+  color: #000000;
+  font-family: "Ensign:Sans", Roboto, Arial, sans-serif;
   margin: 1.2rem 0 0.5rem;
 }
 .doc-body p { margin-bottom: 0.8rem; }
@@ -416,6 +433,7 @@ input, textarea, select { font-family: inherit; }
 .doc-body li { margin-bottom: 0.3rem; }
 .doc-body strong { font-weight: 700; }
 .doc-body .note { color: #666; font-size: 0.85rem; }
+.doc-body a { color: #157493; text-decoration: underline; }
 
 .doc-footer-divider {
   border: none;
@@ -485,9 +503,12 @@ input, textarea, select { font-family: inherit; }
   .doc-paper {
     border: none;
     box-shadow: none;
-    padding: 0;
+    padding: 14mm 16mm;
   }
-  @page { margin: 20mm; }
+  @page {
+    size: A4;
+    margin: 12mm 10mm;
+  }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .doc-body h2 { break-after: avoid; }
   .doc-body p  { orphans: 3; widows: 3; }
