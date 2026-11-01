@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { generateContent, getDocument, updateDocument } from '../../api'
+import { Button, TextField, Select, Switch } from 'trust-ui-react'
 import ImageAttach from '../../components/ImageAttach'
 import GenerationOptions from '../../components/GenerationOptions'
 import PreviewModal from '../../components/PreviewModal'
@@ -167,7 +168,7 @@ export default function Edit() {
         <span className="site-header__title">공문 편집</span>
         <nav className="site-header__nav">
           {savedAt && <span className="draft-status">임시저장됨 {fmtTime(savedAt)}</span>}
-          <Link to="/admin" className="btn btn-secondary btn-sm">← 대시보드</Link>
+          <Button variant="outline" size="sm" onClick={() => navigate("/admin")}>← 대시보드</Button>
         </nav>
       </header>
 
@@ -176,7 +177,7 @@ export default function Edit() {
         {restoredAt && (
           <div className="alert alert-success">
             저장하지 않은 수정 내용을 불러왔습니다 ({fmtTime(restoredAt)} 임시저장).{' '}
-            <button type="button" className="btn btn-secondary btn-sm" onClick={revertToOriginal}>저장된 원본으로 되돌리기</button>
+            <Button variant="outline" size="sm" onClick={revertToOriginal}>저장된 원본으로 되돌리기</Button>
           </div>
         )}
 
@@ -188,31 +189,26 @@ export default function Edit() {
           {/* AI가 유추 불가한 필드 */}
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">발행일 *</label>
-              <input className="form-input" type="date" value={form.issued_date} onChange={set('issued_date')} />
+              <TextField label="발행일 *" fullWidth type="date" value={form.issued_date} onChange={set('issued_date')} />
             </div>
             <div className="form-group" />
           </div>
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">To (수신) *</label>
-              <input className="form-input" value={form.recipients} onChange={set('recipients')} />
+              <TextField label="To (수신) *" fullWidth value={form.recipients} onChange={set('recipients')} />
             </div>
             <div className="form-group">
-              <label className="form-label">Copies (참조) <span style={{ fontWeight: 400, color: '#999' }}>(선택)</span></label>
-              <input className="form-input" value={form.cc} onChange={set('cc')} />
+              <TextField label="Copies (참조) (선택)" fullWidth value={form.cc} onChange={set('cc')} />
             </div>
           </div>
 
           <div className="form-group">
-            <label className="form-label">From / 서명 (발신) *</label>
-            <textarea className="form-textarea" rows={3} value={form.sender} onChange={set('sender')} />
+            <TextField label="From / 서명 (발신) *" fullWidth multiline rows={3} value={form.sender} onChange={set('sender')} />
           </div>
 
           <div className="form-group">
-            <label className="form-label">핵심 내용</label>
-            <textarea className="form-textarea" value={form.key_points} onChange={set('key_points')} rows={4} />
+            <TextField label="핵심 내용" fullWidth multiline value={form.key_points} onChange={set('key_points')} rows={4} />
           </div>
 
           <GenerationOptions
@@ -223,24 +219,25 @@ export default function Edit() {
 
           <ImageAttach images={images} onChange={setImages} />
 
-          <button className="btn btn-secondary" onClick={handleRegenerate} disabled={generating} style={{ marginBottom: '1.5rem' }}>
-            {generating ? <><span className="spinner" /> 생성 중…</> : '↺ AI로 공문 재생성'}
-          </button>
+          <Button variant="outline" onClick={handleRegenerate} loading={generating} disabled={generating} style={{ marginBottom: '1.5rem' }}>
+            {generating ? '생성 중…' : '↺ AI로 공문 재생성'}
+          </Button>
 
           <hr style={{ border: 'none', borderTop: '1px solid #ebe8e3', margin: '0 0 1.5rem' }} />
 
           {/* AI가 생성한 필드 (편집 가능) */}
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">제목</label>
-              <input className="form-input" value={form.title} onChange={set('title')} />
+              <TextField label="제목" fullWidth value={form.title} onChange={set('title')} />
             </div>
             <div className="form-group">
-              <label className="form-label">문서 유형 <span style={{ fontWeight: 400, color: '#999' }}>(생성 결과 · 수정 가능)</span></label>
-              <select className="form-select" value={form.doc_type} onChange={set('doc_type')}>
-                {/* 기존 문서의 옛 유형(알림 등)도 유지되도록 현재 값 포함 */}
-                {[...new Set([...DOC_TYPES, form.doc_type].filter(Boolean))].map((t) => <option key={t}>{t}</option>)}
-              </select>
+              <Select
+                label="문서 유형 (생성 결과 · 수정 가능)"
+                fullWidth
+                value={form.doc_type}
+                onChange={(v) => setForm((f) => ({ ...f, doc_type: v }))}
+                options={[...new Set([...DOC_TYPES, form.doc_type].filter(Boolean))].map((t) => ({ value: t, label: t }))}
+              />
             </div>
           </div>
 
@@ -259,31 +256,20 @@ export default function Edit() {
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">슬러그 (URL)</label>
-              <input className="form-input" value={form.slug} onChange={set('slug')} />
+              <TextField label="슬러그 (URL)" fullWidth value={form.slug} onChange={set('slug')} />
               <p className="form-hint">공문 URL: /doc/{form.slug}</p>
             </div>
             <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', paddingTop: '1.6rem' }}>
-              <label className="toggle-switch">
-                <input
-                  type="checkbox"
-                  checked={form.is_published}
-                  onChange={(e) => setForm((f) => ({ ...f, is_published: e.target.checked }))}
-                />
-                <span className="toggle-slider" />
-              </label>
-              <span className="form-label" style={{ marginBottom: 0 }}>
-                {form.is_published ? '공개' : '비공개'}
-              </span>
+              <Switch checked={form.is_published} onChange={(v) => setForm((f) => ({ ...f, is_published: v }))} label={form.is_published ? '공개' : '비공개'} />
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button type="button" className="btn btn-secondary" onClick={openPreview}>미리보기</button>
-            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-              {saving ? <><span className="spinner" /> 저장 중…</> : '저장하기'}
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={discardDraft}>취소</button>
+            <Button variant="outline" onClick={openPreview}>미리보기</Button>
+            <Button variant="primary" onClick={handleSave} loading={saving} disabled={saving}>
+              {saving ? '저장 중…' : '저장하기'}
+            </Button>
+            <Button variant="outline" onClick={discardDraft}>취소</Button>
           </div>
         </div>
       </main>

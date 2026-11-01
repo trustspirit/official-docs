@@ -69,40 +69,10 @@ input, textarea, select { font-family: inherit; }
 }
 
 /* ── Buttons ─────────────────────────────────────────── */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.45rem 1rem;
-  font-size: 0.85rem;
-  font-weight: 500;
-  border-radius: 3px;
-  transition: background 0.15s, color 0.15s;
-  border: 1.5px solid transparent;
-}
 
-.btn-primary {
-  background: #1a3a5c;
-  color: #fff;
-  border-color: #1a3a5c;
-}
-.btn-primary:hover { background: #14304e; border-color: #14304e; }
 
-.btn-secondary {
-  background: #fff;
-  color: #1a3a5c;
-  border-color: #1a3a5c;
-}
-.btn-secondary:hover { background: #eef2f7; }
 
-.btn-danger {
-  background: #fff;
-  color: #8b0000;
-  border-color: #8b0000;
-}
-.btn-danger:hover { background: #fff5f5; }
 
-.btn-sm { padding: 0.3rem 0.7rem; font-size: 0.8rem; }
 
 /* ── Badge ───────────────────────────────────────────── */
 .badge {
@@ -245,32 +215,6 @@ input, textarea, select { font-family: inherit; }
 .table-actions { display: flex; gap: 0.4rem; }
 
 /* ── Toggle ──────────────────────────────────────────── */
-.toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 36px;
-  height: 20px;
-}
-.toggle-switch input { opacity: 0; width: 0; height: 0; }
-.toggle-slider {
-  position: absolute;
-  inset: 0;
-  background: #ccc;
-  border-radius: 20px;
-  cursor: pointer;
-  transition: 0.2s;
-}
-.toggle-slider::before {
-  content: '';
-  position: absolute;
-  width: 14px; height: 14px;
-  left: 3px; bottom: 3px;
-  background: #fff;
-  border-radius: 50%;
-  transition: 0.2s;
-}
-.toggle-switch input:checked + .toggle-slider { background: #1a3a5c; }
-.toggle-switch input:checked + .toggle-slider::before { transform: translateX(16px); }
 
 /* ── Loading / spinner ───────────────────────────────── */
 .spinner {
@@ -516,22 +460,13 @@ input, textarea, select { font-family: inherit; }
 }
 .image-attach--drag { background: #f4efe6; border-color: #212225; }
 .image-attach__card { display: flex; flex-direction: column; gap: 0.35rem; }
-.image-attach__mode { display: flex; border: 1px solid #ddd8d0; width: 96px; }
-.image-attach__mode button {
-  flex: 1; padding: 0.2rem 0; font-size: 0.72rem; border: none; background: #fff; color: #555;
-}
-.image-attach__mode button + button { border-left: 1px solid #ddd8d0; }
-.image-attach__mode button.is-on { background: #212225; color: #fff; }
 .image-attach__item { position: relative; width: 96px; height: 96px; border: 1px solid #ddd8d0; background: #faf9f6; }
 .image-attach__item img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .image-attach__remove {
   position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%;
   border: none; background: #212225; color: #fff; font-size: 14px; line-height: 22px; padding: 0;
 }
-.image-attach__add {
-  width: 96px; height: 96px; border: 1px dashed #aaa; background: #fff; color: #555; font-size: 0.8rem;
-}
-.image-attach__add:hover:not(:disabled) { border-color: #212225; color: #212225; }
+.image-attach__add.image-attach__add { width: 110px; height: 96px; border-style: dashed; white-space: normal; }
 
 .draft-status { font-size: 0.75rem; color: #6b6760; margin-right: 0.8rem; }
 
@@ -573,3 +508,17 @@ input, textarea, select { font-family: inherit; }
 .gsi-material-button:not(:disabled):focus .gsi-material-button-state { background-color: #303030; opacity: 12%; }
 .gsi-material-button:not(:disabled):hover { box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .30), 0 1px 3px 1px rgba(60, 64, 67, .15); }
 .gsi-material-button:not(:disabled):hover .gsi-material-button-state { background-color: #303030; opacity: 8%; }
+
+/* ── trust-ui-react 테마: 교회 공문 톤(네이비)으로 덮어쓰기 ───────── */
+:root, [data-theme] {
+  --tui-primary: #1a3a5c;
+  --tui-primary-hover: #14304e;
+  --tui-primary-active: #0f2640;
+  --tui-primary-gradient: #1a3a5c;
+  --tui-primary-subtle: #eef2f7;
+  --tui-primary-subtle-hover: #e1e8f0;
+  --tui-primary-text: #ffffff;
+  --tui-radius-md: 3px;
+  --tui-radius-lg: 3px;
+  --tui-radius-xl: 4px;
+}

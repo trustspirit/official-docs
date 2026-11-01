@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { generateContent, createDocument } from '../../api'
+import { Button, TextField, Select, Switch } from 'trust-ui-react'
 import ImageAttach from '../../components/ImageAttach'
 import GenerationOptions from '../../components/GenerationOptions'
 import PreviewModal from '../../components/PreviewModal'
@@ -161,7 +162,7 @@ export default function Create() {
         <span className="site-header__title">새 공문 작성</span>
         <nav className="site-header__nav">
           {savedAt && <span className="draft-status">임시저장됨 {fmtTime(savedAt)}</span>}
-          <Link to="/admin" className="btn btn-secondary btn-sm">← 대시보드</Link>
+          <Button variant="outline" size="sm" onClick={() => navigate("/admin")}>← 대시보드</Button>
         </nav>
       </header>
 
@@ -181,8 +182,7 @@ export default function Create() {
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">발행일 *</label>
-              <input className="form-input" type="date" value={form.issued_date} onChange={set('issued_date')} />
+              <TextField label="발행일 *" fullWidth type="date" value={form.issued_date} onChange={set('issued_date')} />
             </div>
             <div className="form-group">
               {/* 빈 칸 — 레이아웃 균형 */}
@@ -191,29 +191,22 @@ export default function Create() {
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">To (수신) *</label>
-              <input className="form-input" value={form.recipients} onChange={set('recipients')} placeholder="예: 와드 회원 전체" />
+              <TextField label="To (수신) *" fullWidth value={form.recipients} onChange={set('recipients')} placeholder="예: 와드 회원 전체" />
             </div>
             <div className="form-group">
-              <label className="form-label">Copies (참조) <span style={{ fontWeight: 400, color: '#999' }}>(선택)</span></label>
-              <input className="form-input" value={form.cc} onChange={set('cc')} placeholder="(선택)" />
+              <TextField label="Copies (참조) (선택)" fullWidth value={form.cc} onChange={set('cc')} placeholder="(선택)" />
             </div>
           </div>
 
           <div className="form-group">
-            <label className="form-label">From / 서명 (발신) *</label>
-            <textarea className="form-textarea" rows={3} value={form.sender} onChange={set('sender')} placeholder={"Notice: 발신 부서 (예: 신권 가족부)\nLetter: 서명 — 줄마다 한 명 (예: 와드 감독 홍길동). 직위와 이름은 서명에서 자동으로 다른 줄로 나뉩니다."} />
+            <TextField label="From / 서명 (발신) *" fullWidth multiline rows={3} value={form.sender} onChange={set('sender')} placeholder={"Notice: 발신 부서 (예: 신권 가족부)\nLetter: 서명 — 줄마다 한 명 (예: 와드 감독 홍길동). 직위와 이름은 서명에서 자동으로 다른 줄로 나뉩니다."} />
           </div>
 
           <div className="form-group">
-            <label className="form-label">핵심 내용 *</label>
-            <textarea
-              className="form-textarea"
-              value={form.key_points}
+            <TextField label="핵심 내용 *" fullWidth multiline value={form.key_points}
               onChange={set('key_points')}
               placeholder="AI가 공문으로 정리할 핵심 내용을 자유롭게 입력하세요.&#10;예) 6월 15일 오전 10시 와드 체육관에서 가족 홈 이브닝 행사 개최. 전 가족 참석 권장. 음식 나눔 있음."
-              rows={5}
-            />
+              rows={5} />
           </div>
 
           <GenerationOptions
@@ -224,9 +217,9 @@ export default function Create() {
 
           <ImageAttach images={images} onChange={setImages} />
 
-          <button className="btn btn-primary" onClick={handleGenerate} disabled={generating}>
-            {generating ? <><span className="spinner" /> AI 생성 중…</> : '✦ AI로 공문 생성'}
-          </button>
+          <Button variant="primary" onClick={handleGenerate} loading={generating} disabled={generating}>
+            {generating ? 'AI 생성 중…' : '✦ AI로 공문 생성'}
+          </Button>
 
           {/* ── AI 생성 결과 (생성 후 표시) ── */}
           {hasGenerated && (
@@ -238,24 +231,16 @@ export default function Create() {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">제목</label>
-                  <input
-                    className="form-input"
-                    value={generated.title}
-                    onChange={(e) => setGenerated((g) => ({ ...g, title: e.target.value }))}
-                  />
+                  <TextField label="제목" fullWidth value={generated.title} onChange={(e) => setGenerated((g) => ({ ...g, title: e.target.value }))} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">문서 유형 <span style={{ fontWeight: 400, color: '#999' }}>(생성 결과 · 수정 가능)</span></label>
-                  <select
-                    className="form-select"
+                  <Select
+                    label="문서 유형 (생성 결과 · 수정 가능)"
+                    fullWidth
                     value={generated.doc_type}
-                    onChange={(e) => setGenerated((g) => ({ ...g, doc_type: e.target.value }))}
-                  >
-                    {['Letter', 'Notice'].map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => setGenerated((g) => ({ ...g, doc_type: v }))}
+                    options={['Letter', 'Notice'].map((t) => ({ value: t, label: t }))}
+                  />
                 </div>
               </div>
 
@@ -274,27 +259,20 @@ export default function Create() {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">슬러그 (URL)</label>
-                  <input className="form-input" value={slug} onChange={(e) => setSlug(e.target.value)} />
+                  <TextField label="슬러그 (URL)" fullWidth value={slug} onChange={(e) => setSlug(e.target.value)} />
                   <p className="form-hint">공문 URL: /doc/{slug}</p>
                 </div>
                 <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', paddingTop: '1.6rem' }}>
-                  <label className="toggle-switch">
-                    <input type="checkbox" checked={isPublished} onChange={(e) => setIsPublished(e.target.checked)} />
-                    <span className="toggle-slider" />
-                  </label>
-                  <span className="form-label" style={{ marginBottom: 0 }}>
-                    {isPublished ? '공개' : '비공개'}
-                  </span>
+                  <Switch checked={isPublished} onChange={setIsPublished} label={isPublished ? '공개' : '비공개'} />
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button type="button" className="btn btn-secondary" onClick={openPreview}>미리보기</button>
-                <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-                  {saving ? <><span className="spinner" /> 저장 중…</> : '저장하기'}
-                </button>
-                <button type="button" className="btn btn-secondary" onClick={discardDraft}>취소</button>
+                <Button variant="outline" onClick={openPreview}>미리보기</Button>
+                <Button variant="primary" onClick={handleSave} loading={saving} disabled={saving}>
+                  {saving ? '저장 중…' : '저장하기'}
+                </Button>
+                <Button variant="outline" onClick={discardDraft}>취소</Button>
               </div>
             </>
           )}

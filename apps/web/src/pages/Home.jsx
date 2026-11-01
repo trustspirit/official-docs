@@ -1,9 +1,11 @@
+import { Button } from 'trust-ui-react'
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import SiteLayout from '../components/SiteLayout'
 import { listDocuments } from '../api'
 
 export default function Home() {
+  const navigate = useNavigate()
   const [docs, setDocs] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -47,9 +49,9 @@ export default function Home() {
                 </div>
               </div>
               <div className="doc-card__right">
-                <Link to={`/doc/${doc.slug}`} className="btn btn-secondary btn-sm">
+                <Button variant="outline" size="sm" onClick={() => navigate(`/doc/${doc.slug}`)}>
                   보기 →
-                </Link>
+                </Button>
               </div>
             </div>
           ))}

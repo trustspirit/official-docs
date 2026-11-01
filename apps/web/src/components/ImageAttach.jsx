@@ -1,3 +1,4 @@
+import { Button, SegmentedControl } from 'trust-ui-react'
 import { useRef, useState } from 'react'
 import { uploadImage } from '../api'
 
@@ -100,17 +101,23 @@ export default function ImageAttach({ images, onChange }) {
                 <img src={im.url} alt={im.name} />
                 <button type="button" className="image-attach__remove" onClick={() => remove(im.path)} aria-label={`${im.name} 제거`}>×</button>
               </div>
-              <div className="image-attach__mode" role="group" aria-label={`${im.name} 사용 방식`}>
-                <button type="button" className={mode === 'inline' ? 'is-on' : ''} onClick={() => setMode(im.path, 'inline')} title="공문 본문 중간에 이미지를 넣습니다">본문</button>
-                <button type="button" className={mode === 'attachment' ? 'is-on' : ''} onClick={() => setMode(im.path, 'attachment')} title="공문 뒤에 첨부 페이지로 붙입니다">첨부</button>
-              </div>
+              <SegmentedControl
+                size="sm"
+                aria-label={`${im.name} 사용 방식`}
+                value={mode}
+                onChange={(m) => setMode(im.path, m)}
+                options={[
+                  { value: 'inline', label: '본문' },
+                  { value: 'attachment', label: '첨부' },
+                ]}
+              />
             </div>
           )
         })}
         {images.length < MAX_IMAGES && (
-          <button type="button" className="image-attach__add" onClick={() => inputRef.current?.click()} disabled={uploading}>
-            {uploading ? <span className="spinner" /> : <>+ 이미지 추가<br /><span style={{ fontSize: '0.68rem', color: '#999' }}>또는 끌어다 놓기</span></>}
-          </button>
+          <Button variant="outline" className="image-attach__add" onClick={() => inputRef.current?.click()} loading={uploading} disabled={uploading}>
+            + 이미지 추가
+          </Button>
         )}
         <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden onChange={handleFiles} />
       </div>

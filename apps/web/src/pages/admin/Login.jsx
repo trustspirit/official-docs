@@ -1,3 +1,4 @@
+import { Button } from 'trust-ui-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { signInWithPopup, signOut } from 'firebase/auth'
@@ -44,7 +45,7 @@ export default function Login() {
           <div className="alert alert-error">
             {email} 계정은 관리자 권한이 없습니다. 허용된 Google 계정으로 다시 로그인해 주세요.
             <div style={{ marginTop: '0.6rem' }}>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => signOut(auth)}>다른 계정으로 로그인</button>
+              <Button variant="outline" size="sm" onClick={() => signOut(auth)}>다른 계정으로 로그인</Button>
             </div>
           </div>
         )}

@@ -1,3 +1,4 @@
+import { Button } from 'trust-ui-react'
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import DocumentPaper from './DocumentPaper'
@@ -27,8 +28,8 @@ export default function PreviewModal({ doc, onClose }) {
       <div className="preview-bar no-print">
         <span className="preview-bar__title">미리보기</span>
         <div className="preview-bar__actions">
-          <button className="btn btn-primary btn-sm" onClick={() => printAsPdf(doc.title)}>PDF 저장 / 인쇄</button>
-          <button className="btn btn-secondary btn-sm" onClick={onClose}>닫기</button>
+          <Button variant="primary" size="sm" onClick={() => printAsPdf(doc.title)}>PDF 저장 / 인쇄</Button>
+          <Button variant="outline" size="sm" onClick={onClose}>닫기</Button>
         </div>
       </div>
       <div className="preview-scroll">

@@ -1,3 +1,4 @@
+import { Button } from 'trust-ui-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { signOut } from 'firebase/auth'
@@ -44,15 +45,15 @@ export default function Dashboard() {
       <header className="site-header">
         <span className="site-header__title">공문 관리자</span>
         <nav className="site-header__nav" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <Link to="/" className="btn btn-secondary btn-sm">공개 목록</Link>
-          <button className="btn btn-secondary btn-sm" onClick={handleLogout}>로그아웃</button>
+          <Button variant="outline" size="sm" onClick={() => navigate("/")}>공개 목록</Button>
+          <Button variant="outline" size="sm" onClick={handleLogout}>로그아웃</Button>
         </nav>
       </header>
 
       <main className="main-content">
         <div className="admin-header">
           <h1 className="page-title" style={{ marginBottom: 0 }}>공문 목록</h1>
-          <Link to="/admin/create" className="btn btn-primary">+ 새 공문 작성</Link>
+          <Button variant="primary" onClick={() => navigate("/admin/create")}>+ 새 공문 작성</Button>
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
@@ -92,8 +93,8 @@ export default function Dashboard() {
                     </td>
                     <td>
                       <div className="table-actions">
-                        <Link to={`/admin/edit/${doc.id}`} className="btn btn-secondary btn-sm">편집</Link>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(doc.id, doc.title)}>삭제</button>
+                        <Button variant="outline" size="sm" onClick={() => navigate(`/admin/edit/${doc.id}`)}>편집</Button>
+                        <Button variant="danger" size="sm" onClick={() => handleDelete(doc.id, doc.title)}>삭제</Button>
                       </div>
                     </td>
                   </tr>
