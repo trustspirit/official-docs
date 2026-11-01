@@ -1,4 +1,6 @@
-import { isMobileDevice } from './mobilePdf.js'
+export const isMobileDevice = () =>
+  /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 
 // A4 인쇄 영역 (styles/global.css 의 인쇄 규칙과 일치해야 함): @page 여백 0,
 // 좌우는 .doc-paper 패딩 18mm, 상·하는 쪽마다 16mm 여백 행
@@ -46,26 +48,22 @@ export function fitSqueeze(paper) {
   return level ?? 0
 }
 
-function showBusy() {
-  const el = document.createElement('div')
-  el.className = 'pdf-result no-print'
-  el.innerHTML = '<div class="pdf-result__card"><p class="pdf-result__title"><span class="spinner"></span> PDF 만드는 중…</p></div>'
-  document.body.appendChild(el)
-  return () => el.remove()
-}
-
-// 모바일: 인쇄 창 대신 PDF 파일을 직접 만들어 미리보기·저장
-async function savePdfOnMobile(title, paper) {
-  const hide = showBusy()
+// 모바일: 인쇄 창 대신 PDF 파일을 직접 만들어 새 탭에서 연다 (브라우저 PDF 뷰어에서 저장·공유 가능).
+// 비동기 작업 뒤에는 팝업이 차단되므로, 탭을 클릭 시점에 먼저 열어 두고 PDF가 준비되면 주소를 바꾼다.
+async function savePdfOnMobile(paper) {
+  const tab = window.open('', '_blank')
+  if (tab) {
+    tab.document.write('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>PDF</title><body style="font:16px sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color:#444">PDF 만드는 중…</body>')
+    tab.document.close()
+  }
   try {
-    const { buildPdfBlob, showPdfResult } = await import('./mobilePdf.js')
-    const name = `${(title || '공문').replace(/[\\/:*?"<>|]/g, ' ').trim()}.pdf`
-    const blob = await buildPdfBlob(paper)
-    hide()
-    showPdfResult(blob, name)
+    const { buildPdfBlob } = await import('./mobilePdf.js')
+    const url = URL.createObjectURL(await buildPdfBlob(paper))
+    if (tab && !tab.closed) tab.location.href = url
+    else window.location.href = url // 새 탭이 차단되면 현재 탭에서 연다 (뒤로 가기로 복귀)
   } catch (e) {
-    hide()
     console.error(e)
+    tab?.close()
     window.alert('PDF를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
   }
 }
@@ -74,7 +72,7 @@ async function savePdfOnMobile(title, paper) {
 export function printAsPdf(title) {
   const original = document.title
   const paper = document.querySelector('.preview-overlay .doc-paper') || document.querySelector('.doc-paper')
-  if (paper && isMobileDevice()) return savePdfOnMobile(title, paper)
+  if (paper && isMobileDevice()) return savePdfOnMobile(paper)
   let squeeze = 0
   try { squeeze = fitSqueeze(paper) } catch { /* 압축 계산 실패해도 인쇄는 진행 */ }
   if (paper && squeeze) paper.style.setProperty('--doc-squeeze', String(squeeze))

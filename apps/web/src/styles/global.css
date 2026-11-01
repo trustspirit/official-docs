@@ -636,21 +636,3 @@ input, textarea, select { font-family: inherit; }
 
   .login-card { margin: 0 1rem; padding: 2rem 1.4rem; }
 }
-
-/* ── 모바일 PDF 결과 창 ──────────────────────────────── */
-.pdf-result {
-  position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center;
-  background: rgba(33, 34, 37, 0.55); padding: 1rem;
-}
-.pdf-result__card {
-  width: 100%; max-width: 340px; background: #fff; padding: 1.4rem 1.2rem;
-  display: flex; flex-direction: column; gap: 0.6rem; text-align: center;
-}
-.pdf-result__title { font-weight: 700; color: #212225; }
-.pdf-result__name { font-size: 0.8rem; color: #6b6760; word-break: break-all; margin-bottom: 0.4rem; }
-.pdf-result__btn {
-  display: block; width: 100%; padding: 0.75rem; font-size: 1rem; text-align: center;
-  border: 1px solid #1a3a5c; background: #fff; color: #1a3a5c;
-}
-.pdf-result__btn--primary { background: #1a3a5c; color: #fff; }
-.pdf-result__btn--ghost { border-color: transparent; color: #6b6760; }
