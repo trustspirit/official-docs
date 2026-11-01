@@ -87,4 +87,4 @@ jobs:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
       - name: Deploy to Firebase
-        run: npx --yes firebase-tools@15.6.0 deploy --project "$FIREBASE_PROJECT" --non-interactive --force
+        run: npx firebase deploy --project "$FIREBASE_PROJECT" --non-interactive
