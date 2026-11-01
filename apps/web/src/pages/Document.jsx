@@ -40,6 +40,8 @@ export default function Document() {
 
   return (
     <div className="doc-page-wrapper">
+      <DocumentPaper doc={doc} />
+
       {/* 화면 전용 액션 버튼 */}
       <div className="doc-actions no-print">
         <Button variant="outline" size="sm" onClick={() => navigate("/")}>← 목록으로</Button>
@@ -47,8 +49,6 @@ export default function Document() {
           PDF 저장 / 인쇄
         </Button>
       </div>
-
-      <DocumentPaper doc={doc} />
     </div>
   )
 }

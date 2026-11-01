@@ -302,7 +302,7 @@ input, textarea, select { font-family: inherit; }
 .doc-actions {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  margin-top: 1.5rem;
   align-items: center;
 }
 
@@ -615,7 +615,7 @@ input, textarea, select { font-family: inherit; }
 
   /* 공문 용지: 화면 폭에 맞춰 여백을 줄이고 머리글을 세로로 쌓음 */
   .doc-page-wrapper { padding: 0.75rem 0 2rem; }
-  .doc-actions { padding: 0 0.75rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+  .doc-actions { padding: 0 0.75rem; flex-wrap: wrap; margin-top: 0.9rem; }
   .doc-paper { padding: 28px 20px; border-left: 0; border-right: 0; overflow-wrap: anywhere; }
 
   .doc-header, .doc-header--name { grid-template-columns: 1fr; margin-bottom: 1rem; }
