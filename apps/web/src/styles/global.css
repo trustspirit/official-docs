@@ -636,3 +636,15 @@ input, textarea, select { font-family: inherit; }
 
   .login-card { margin: 0 1rem; padding: 2rem 1.4rem; }
 }
+
+/* ── 모바일 PDF 생성 중 ──────────────────────────────── */
+.pdf-busy {
+  position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center;
+  background: rgba(33, 34, 37, 0.55); padding: 1rem;
+}
+.pdf-busy__card {
+  background: #fff; padding: 1.6rem 2rem; text-align: center; display: flex; flex-direction: column;
+  align-items: center; gap: 0.5rem; min-width: 220px;
+}
+.pdf-busy__card p { font-weight: 700; color: #212225; }
+.pdf-busy__card small { color: #6b6760; }

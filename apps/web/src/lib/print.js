@@ -48,22 +48,32 @@ export function fitSqueeze(paper) {
   return level ?? 0
 }
 
-// 모바일: 인쇄 창 대신 PDF 파일을 직접 만들어 새 탭에서 연다 (브라우저 PDF 뷰어에서 저장·공유 가능).
-// 비동기 작업 뒤에는 팝업이 차단되므로, 탭을 클릭 시점에 먼저 열어 두고 PDF가 준비되면 주소를 바꾼다.
+function showBusy() {
+  const el = document.createElement('div')
+  el.className = 'pdf-busy no-print'
+  el.setAttribute('role', 'alert')
+  el.innerHTML = '<div class="pdf-busy__card"><span class="spinner"></span><p>PDF를 만드는 중입니다…</p><small>잠시만 기다려 주세요</small></div>'
+  document.body.appendChild(el)
+  return () => el.remove()
+}
+
+// 모바일: 인쇄 창 대신 PDF 파일을 직접 만든 뒤, 완성되면 연다 (브라우저 PDF 뷰어에서 저장·공유 가능).
+// 만드는 동안에는 현재 페이지에 로딩 화면을 보여 준다.
 async function savePdfOnMobile(paper) {
-  const tab = window.open('', '_blank')
-  if (tab) {
-    tab.document.write('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>PDF</title><body style="font:16px sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color:#444">PDF 만드는 중…</body>')
-    tab.document.close()
-  }
+  const hide = showBusy()
   try {
     const { buildPdfBlob } = await import('./mobilePdf.js')
-    const url = URL.createObjectURL(await buildPdfBlob(paper))
-    if (tab && !tab.closed) tab.location.href = url
-    else window.location.href = url // 새 탭이 차단되면 현재 탭에서 연다 (뒤로 가기로 복귀)
+    const blob = await Promise.race([
+      buildPdfBlob(paper),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000)),
+    ])
+    const url = URL.createObjectURL(blob)
+    hide()
+    // 비동기 작업 뒤라 새 탭이 차단될 수 있으므로, 막히면 현재 탭에서 연다 (뒤로 가기로 복귀)
+    if (!window.open(url, '_blank')) window.location.href = url
   } catch (e) {
+    hide()
     console.error(e)
-    tab?.close()
     window.alert('PDF를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
   }
 }

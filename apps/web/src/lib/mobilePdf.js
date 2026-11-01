@@ -5,7 +5,8 @@ const A4_W_PX = 793 // 210mm @ 96dpi
 const MM = 96 / 25.4
 const MARGIN_MM = 16 // 쪽마다 위·아래 여백 (인쇄 규칙과 동일)
 const PAGE_H_PX = (297 - 2 * MARGIN_MM) * MM
-const SCALE = 2
+const MAX_SCALE = 2
+const MAX_PIXELS = 14e6 // 모바일 캔버스 메모리 한도(iOS 약 16M px) 안쪽으로
 
 function createFrame(paper) {
   return new Promise((resolve) => {
@@ -13,7 +14,13 @@ function createFrame(paper) {
     Object.assign(iframe.style, {
       position: 'fixed', left: '-10000px', top: '0', width: `${A4_W_PX}px`, height: '1000px', border: '0',
     })
-    iframe.onload = async () => {
+    // 일부 모바일 브라우저는 빈 iframe의 load 이벤트가 오지 않을 수 있어 srcdoc + 타임아웃으로 반드시 진행
+    let started = false
+    const go = () => { if (!started) { started = true; init() } }
+    iframe.onload = go
+    setTimeout(go, 3000)
+    iframe.srcdoc = '<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>'
+    const init = async () => {
       const doc = iframe.contentDocument
       // 같은 출처의 CSS는 규칙을 <style>로 직접 복사(로드 대기·경쟁 상태 없음), 읽을 수 없는 외부 CSS(웹폰트)만 <link>로 복제
       let css = ''
@@ -95,11 +102,12 @@ export async function buildPdfBlob(paper) {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')])
   const { iframe, doc, clone } = await createFrame(paper)
   try {
+    const totalH = clone.scrollHeight
+    const SCALE = Math.max(1, Math.min(MAX_SCALE, Math.sqrt(MAX_PIXELS / (A4_W_PX * totalH))))
     const canvas = await html2canvas(clone, {
-      scale: SCALE, backgroundColor: '#fff', useCORS: true,
+      scale: SCALE, backgroundColor: '#fff', useCORS: true, imageTimeout: 8000,
       windowWidth: A4_W_PX, width: A4_W_PX, scrollX: 0, scrollY: 0,
     })
-    const totalH = clone.scrollHeight
     const breaks = computeBreaks(clone, totalH)
     const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
     const mmPerPx = 210 / A4_W_PX
