@@ -6,7 +6,9 @@
     "church-docs-official": {
       "hosting": {
         "app": [
-          "church-docs-official",
+          "church-docs-official"
+        ],
+        "app-gmdocs": [
           "gmdocs"
         ]
       }

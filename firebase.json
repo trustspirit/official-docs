@@ -1,29 +1,56 @@
 {
-  "hosting": {
-    "public": "apps/web/dist",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "/api/**",
-        "function": "api",
-        "region": "asia-northeast3"
-      },
-      {
-        "source": "/s/**",
-        "function": "api",
-        "region": "asia-northeast3"
-      },
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ],
-    "target": "app"
-  },
+  "hosting": [
+    {
+      "public": "apps/web/dist",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "/api/**",
+          "function": "api",
+          "region": "asia-northeast3"
+        },
+        {
+          "source": "/s/**",
+          "function": "api",
+          "region": "asia-northeast3"
+        },
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "target": "app"
+    },
+    {
+      "public": "apps/web/dist",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "/api/**",
+          "function": "api",
+          "region": "asia-northeast3"
+        },
+        {
+          "source": "/s/**",
+          "function": "api",
+          "region": "asia-northeast3"
+        },
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "target": "app-gmdocs"
+    }
+  ],
   "functions": {
     "source": "apps/functions",
     "runtime": "python311",
