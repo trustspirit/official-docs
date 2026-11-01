@@ -202,7 +202,7 @@ export default function Create() {
 
           <div className="form-group">
             <label className="form-label">From / 서명 (발신) *</label>
-            <textarea className="form-textarea" rows={3} value={form.sender} onChange={set('sender')} placeholder="Notice: 발신 부서 (예: 신권 가족부) / Letter: 서명 (예: 제일회장단, 줄바꿈으로 이름 추가)" />
+            <textarea className="form-textarea" rows={3} value={form.sender} onChange={set('sender')} placeholder={"Notice: 발신 부서 (예: 신권 가족부)\nLetter: 서명 — 줄마다 한 명 (예: 와드 감독 홍길동). 직위와 이름은 서명에서 자동으로 다른 줄로 나뉩니다."} />
           </div>
 
           <div className="form-group">

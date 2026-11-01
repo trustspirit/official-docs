@@ -193,12 +193,37 @@ def _strip_model_closing(content: str) -> str:
     return _MODEL_CLOSING_RE.sub("", content.rstrip())
 
 
+# 서명에서 직위로 간주하는 낱말의 끝부분 (예: "제1보좌", "스테이크 음악 코디네이터")
+_TITLE_SUFFIXES = (
+    "회장단", "회장", "보좌", "감독단", "감독", "서기", "고문", "위원장", "위원",
+    "단장", "총무", "코디네이터", "지도자", "교사", "장로", "이사", "부장", "대표",
+)
+_SIGNATURE_SEPARATORS = re.compile(r"\s*[|/·,，]\s*")
+
+
+def split_signature_line(line: str) -> list[str]:
+    """한 줄에 쓴 '직위 이름'을 직위와 이름 두 줄로 나눈다.
+    - 구분자(| / · ,)가 있으면 그 기준으로 나눔
+    - 없으면 마지막 직위 낱말까지를 직위, 나머지를 이름으로 봄 (예: '와드 감독 홍길동' → '와드 감독', '홍길동')
+    - 이름만 있거나 직위만 있는 줄은 그대로 둠"""
+    line = line.strip()
+    parts = [p for p in _SIGNATURE_SEPARATORS.split(line) if p]
+    if len(parts) > 1:
+        return parts
+    tokens = line.split()
+    last = max((i for i, t in enumerate(tokens) if t.endswith(_TITLE_SUFFIXES)), default=-1)
+    name_tokens = tokens[last + 1:]
+    if last < 0 or not name_tokens or len(name_tokens) > 4:
+        return [line] if line else []
+    return [" ".join(tokens[: last + 1]), " ".join(name_tokens)]
+
+
 def append_closing(content: str, phrase: str | None, sender: str) -> str:
     """끝인사와 서명(발신 줄)을 본문 뒤, '추가 정보' 앞에 붙인다. 이름은 입력값 그대로만 사용."""
     content = _strip_model_closing(content)
     if not phrase:
         return content
-    lines = [html.escape(l.strip()) for l in sender.splitlines() if l.strip()]
+    lines = [html.escape(part) for raw in sender.splitlines() for part in split_signature_line(raw)]
     block = f"<p>{html.escape(phrase)}</p>"
     if lines:
         block += '<div class="signature">' + "".join(f"<p>{l}</p>" for l in lines) + "</div>"
