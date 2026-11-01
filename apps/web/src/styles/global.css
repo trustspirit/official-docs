@@ -509,16 +509,12 @@ input, textarea, select { font-family: inherit; }
 .gsi-material-button:not(:disabled):hover { box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .30), 0 1px 3px 1px rgba(60, 64, 67, .15); }
 .gsi-material-button:not(:disabled):hover .gsi-material-button-state { background-color: #303030; opacity: 8%; }
 
-/* ── trust-ui-react 테마: 교회 공문 톤(네이비)으로 덮어쓰기 ───────── */
+/* ── trust-ui-react v2 테마: 교회 공문 톤(네이비)으로 덮어쓰기 ───────── */
 :root, [data-theme] {
-  --tui-primary: #1a3a5c;
-  --tui-primary-hover: #14304e;
-  --tui-primary-active: #0f2640;
-  --tui-primary-gradient: #1a3a5c;
-  --tui-primary-subtle: #eef2f7;
-  --tui-primary-subtle-hover: #e1e8f0;
-  --tui-primary-text: #ffffff;
-  --tui-radius-md: 3px;
-  --tui-radius-lg: 3px;
-  --tui-radius-xl: 4px;
+  --tui-accent: #1a3a5c;
+  --tui-accent-hover: #14304e;
+  --tui-on-accent: #ffffff;
+  --tui-radius-control: 3px;
+  --tui-radius-tight: 2px;
+  --tui-font-sans: inherit;
 }
