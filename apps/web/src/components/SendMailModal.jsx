@@ -7,6 +7,10 @@ import { buildPdfBlob } from '../lib/mobilePdf'
 
 const MAX_PDF_BYTES = 7 * 1024 * 1024 // 서버 한도와 동일
 
+// 전달 방식별 기본 안내문 (링크는 서버가 본문 아래에 "공문 보기: 주소"로 덧붙임)
+const defaultMessage = (mode) =>
+  `지역 칠십인 명의 발송 공문은 교회 웹 사이트에서 제공되지 않으므로 ${mode === 'pdf' ? '첨부된 PDF 문서를' : '아래 링크를'} 참고하시기 바랍니다.`
+
 const blobToBase64 = (blob) =>
   new Promise((resolve, reject) => {
     const r = new FileReader()
@@ -23,7 +27,8 @@ export default function SendMailModal({ doc, onClose }) {
   const [selected, setSelected] = useState([])
   const [test, setTest] = useState(false)
   const [subject, setSubject] = useState(doc.title)
-  const [message, setMessage] = useState(`${doc.title} 공문을 보내 드립니다.\n\n자세한 내용을 확인해 주시기 바랍니다.`)
+  const [message, setMessage] = useState(() => defaultMessage(doc.is_published ? 'link' : 'pdf'))
+  const [messageEdited, setMessageEdited] = useState(false)
   const [mode, setMode] = useState(doc.is_published ? 'link' : 'pdf')
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
@@ -48,6 +53,12 @@ export default function SendMailModal({ doc, onClose }) {
     return new Set(contacts.filter((c) => roles.includes(c.role)).map((c) => c.email)).size
   }, [groups, contacts, selected])
   const total = test ? 1 : groupTotal
+
+  // 전달 방식을 바꾸면, 내용을 직접 고치지 않은 경우에 한해 기본 안내문도 함께 바꾼다
+  const changeMode = (m) => {
+    setMode(m)
+    if (!messageEdited) setMessage(defaultMessage(m))
+  }
 
   const toggle = (key) => setSelected((s) => (s.includes(key) ? s.filter((k) => k !== key) : [...s, key]))
 
@@ -112,17 +123,17 @@ export default function SendMailModal({ doc, onClose }) {
 
             <div className="form-group">
               <label className="form-label">발송 내용</label>
-              <textarea className="form-textarea" rows={5} value={message} onChange={(e) => setMessage(e.target.value)} maxLength={5000} />
+              <textarea className="form-textarea" rows={5} value={message} onChange={(e) => { setMessage(e.target.value); setMessageEdited(true) }} maxLength={5000} />
             </div>
 
             <div className="form-group">
               <label className="form-label">전달 방식</label>
               <label className="check-row">
-                <input type="radio" name="mode" checked={mode === 'link'} disabled={!doc.is_published} onChange={() => setMode('link')} />
+                <input type="radio" name="mode" checked={mode === 'link'} disabled={!doc.is_published} onChange={() => changeMode('link')} />
                 <span>공문 링크 전달{!doc.is_published && ' (비공개 공문은 불가)'}</span>
               </label>
               <label className="check-row">
-                <input type="radio" name="mode" checked={mode === 'pdf'} onChange={() => setMode('pdf')} />
+                <input type="radio" name="mode" checked={mode === 'pdf'} onChange={() => changeMode('pdf')} />
                 <span>PDF 첨부</span>
               </label>
             </div>
