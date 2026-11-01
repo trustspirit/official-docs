@@ -574,3 +574,65 @@ input, textarea, select { font-family: inherit; }
   --tui-radius-tight: 2px;
   --tui-font-sans: inherit;
 }
+
+/* ── Mobile (screen only — 인쇄 레이아웃에는 영향 없음) ───────────── */
+@media screen and (max-width: 640px) {
+  html { font-size: 14.5px; }
+  body { overflow-x: hidden; }
+
+  .site-header { padding: 0 1rem; height: auto; min-height: 52px; gap: 0.6rem; flex-wrap: wrap; padding-top: 0.4rem; padding-bottom: 0.4rem; }
+  .main-content { padding: 1.5rem 1rem; }
+  .site-footer { padding: 1rem; }
+
+  /* iOS Safari는 16px 미만 입력창에 포커스하면 화면을 확대함 */
+  .form-input, .form-select, .form-textarea, .library-search input { font-size: 16px; }
+  .body-editor { font-size: 16px; padding: 0.8rem; }
+
+  .admin-wrapper { padding: 1.1rem; }
+  .form-row { grid-template-columns: 1fr; gap: 0; }
+  .admin-header { flex-wrap: wrap; gap: 0.8rem; }
+  .page-title { font-size: 1.2rem; }
+
+  .library-title { margin-bottom: 1.4rem; }
+  .library-search button { padding: 0 0.9rem; }
+  .library-item__link { padding: 1.2rem 0; }
+  .library-item__excerpt { font-size: 0.95rem; }
+
+  /* 관리자 표 → 카드 목록 */
+  .admin-table, .admin-table tbody, .admin-table tr, .admin-table td { display: block; width: 100%; }
+  .admin-table thead { display: none; }
+  .admin-table tr { padding: 0.9rem 1rem; border-bottom: 1px solid #ebe8e3; }
+  .admin-table tr:last-child { border-bottom: 0; }
+  .admin-table td { padding: 0.15rem 0; border: 0; }
+  .admin-table td[data-label]::before {
+    content: attr(data-label);
+    display: inline-block; min-width: 3.2rem; margin-right: 0.5rem;
+    font-size: 0.75rem; color: #888;
+  }
+  .admin-table td.admin-table__title { font-size: 1rem; margin-bottom: 0.3rem; }
+  .admin-table td.admin-table__title::before { display: none; }
+  .admin-table td.admin-table__actions { margin-top: 0.5rem; }
+
+  /* 공문 용지: 화면 폭에 맞춰 여백을 줄이고 머리글을 세로로 쌓음 */
+  .doc-page-wrapper { padding: 0.75rem 0 2rem; }
+  .doc-actions { padding: 0 0.75rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+  .doc-paper { padding: 28px 20px; border-left: 0; border-right: 0; overflow-wrap: anywhere; }
+
+  .doc-header, .doc-header--name { grid-template-columns: 1fr; margin-bottom: 1rem; }
+  .doc-logo { padding-right: 0; margin-bottom: 1rem; }
+  .doc-logo img { width: 72px; }
+  .doc-logo--name { width: 130px; margin-right: 0; }
+  .doc-title-block { padding-left: 0; }
+  .doc-title { font-size: 1.5rem; }
+  .doc-body { font-size: calc(0.95rem * (1 - 0.08 * var(--doc-squeeze, 0))); line-height: 1.85; }
+  .doc-body h2 { font-size: 1.2rem; }
+  .doc-body ul, .doc-body ol { margin-left: 1.3rem; }
+  .doc-body table { display: block; max-width: 100%; overflow-x: auto; }
+  .doc-body figure { margin: 1.1rem 0 1.3rem; }
+
+  /* 미리보기 */
+  .preview-bar { padding: 0.5rem 0.75rem; gap: 0.5rem; }
+  .preview-scroll { padding: 0.5rem 0 1.5rem; }
+
+  .login-card { margin: 0 1rem; padding: 2rem 1.4rem; }
+}

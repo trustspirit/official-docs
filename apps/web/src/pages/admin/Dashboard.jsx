@@ -78,20 +78,20 @@ export default function Dashboard() {
               <tbody>
                 {docs.map((doc) => (
                   <tr key={doc.id}>
-                    <td>
+                    <td className="admin-table__title">
                       <Link to={`/doc/${doc.slug}`} style={{ color: '#1a3a5c', fontWeight: 600 }}>
                         {doc.title}
                       </Link>
                     </td>
-                    <td><span className="badge">{doc.doc_type}</span></td>
-                    <td style={{ whiteSpace: 'nowrap' }}>{doc.issued_date}</td>
-                    <td>{doc.recipients}</td>
-                    <td>
+                    <td data-label="유형"><span className="badge">{doc.doc_type}</span></td>
+                    <td data-label="발행일" style={{ whiteSpace: 'nowrap' }}>{doc.issued_date}</td>
+                    <td data-label="수신">{doc.recipients}</td>
+                    <td data-label="공개">
                       <span style={{ color: doc.is_published ? '#1a5c2a' : '#888', fontSize: '0.8rem', fontWeight: 600 }}>
                         {doc.is_published ? '공개' : '비공개'}
                       </span>
                     </td>
-                    <td>
+                    <td className="admin-table__actions">
                       <div className="table-actions">
                         <Button variant="outline" size="sm" onClick={() => navigate(`/admin/edit/${doc.id}`)}>편집</Button>
                         <Button variant="danger" size="sm" onClick={() => handleDelete(doc.id, doc.title)}>삭제</Button>
