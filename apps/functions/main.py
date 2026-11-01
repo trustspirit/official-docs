@@ -12,7 +12,7 @@ from auth import (
     AuthNotConfigured, create_access_token, check_credentials,
     require_admin, get_admin_username,
 )
-from ai import generate_document
+from ai import generate_document, VALID_CLOSINGS, VALID_TYPE_PREFS
 from sanitize import sanitize_html
 from storage_utils import MAX_IMAGE_BYTES, sniff_image_type, upload_image, load_image
 
@@ -147,6 +147,10 @@ def generate():
     for field in required:
         if not body.get(field):
             return _json({"detail": f"{field} 필드가 필요합니다"}, 400)
+    doc_type_pref = body.get("doc_type_pref", "auto")
+    closing = body.get("closing", "auto")
+    if doc_type_pref not in VALID_TYPE_PREFS or closing not in VALID_CLOSINGS:
+        return _json({"detail": "doc_type_pref 또는 closing 값이 올바르지 않습니다"}, 400)
     image_paths = body.get("images") or []
     if not isinstance(image_paths, list) or len(image_paths) > MAX_IMAGES:
         return _json({"detail": f"이미지는 최대 {MAX_IMAGES}장까지 첨부할 수 있습니다"}, 400)
@@ -164,6 +168,8 @@ def generate():
             key_points=body["key_points"],
             cc=body.get("cc", ""),
             images=images,
+            doc_type_pref=doc_type_pref,
+            closing=closing,
         )
         # result = {"title": ..., "doc_type": ..., "content": ...}
         return _json(result)
