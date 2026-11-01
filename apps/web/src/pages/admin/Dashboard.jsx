@@ -4,12 +4,14 @@ import { Link, useNavigate } from 'react-router-dom'
 import { signOut } from 'firebase/auth'
 import { auth } from '../../firebase'
 import { listDocuments, deleteDocument } from '../../api'
+import SendMailModal from '../../components/SendMailModal'
 
 export default function Dashboard() {
   const navigate = useNavigate()
   const [docs, setDocs] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [mailDoc, setMailDoc] = useState(null)
 
   const fetchDocs = () => {
     setLoading(true)
@@ -45,6 +47,7 @@ export default function Dashboard() {
       <header className="site-header">
         <span className="site-header__title">지역칠십인 공문 관리자</span>
         <nav className="site-header__nav" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <Button variant="outline" size="sm" onClick={() => navigate("/admin/contacts")}>주소록</Button>
           <Button variant="outline" size="sm" onClick={() => navigate("/")}>공개 목록</Button>
           <Button variant="outline" size="sm" onClick={handleLogout}>로그아웃</Button>
         </nav>
@@ -93,6 +96,7 @@ export default function Dashboard() {
                     </td>
                     <td className="admin-table__actions">
                       <div className="table-actions">
+                        <Button variant="outline" size="sm" onClick={() => setMailDoc(doc)}>이메일 발송</Button>
                         <Button variant="outline" size="sm" onClick={() => navigate(`/admin/edit/${doc.id}`)}>편집</Button>
                         <Button variant="danger" size="sm" onClick={() => handleDelete(doc.id, doc.title)}>삭제</Button>
                       </div>
@@ -104,6 +108,8 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {mailDoc && <SendMailModal doc={mailDoc} onClose={() => setMailDoc(null)} />}
 
       <footer className="site-footer">© 지역칠십인</footer>
     </div>

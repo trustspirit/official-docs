@@ -83,6 +83,9 @@ npm run dev  # apps/web 개발 서버 (localhost:5173, /api → localhost:5001 �
 firebase functions:secrets:set ANTHROPIC_API_KEY
 printf 'admin1@example.com,admin2@example.com' | firebase functions:secrets:set ADMIN_EMAILS --data-file -
 firebase functions:secrets:set OPENAI_API_KEY   # OpenAI 사용 시
+# 공문 이메일 발송 (Gmail SMTP — Google 계정 2단계 인증 후 '앱 비밀번호' 발급)
+printf 'you@gmail.com' | firebase functions:secrets:set SMTP_USER --data-file -
+firebase functions:secrets:set SMTP_APP_PASSWORD
 ```
 
 7. 빌드 후 배포합니다.

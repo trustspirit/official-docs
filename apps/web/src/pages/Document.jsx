@@ -1,12 +1,11 @@
 import { Button } from 'trust-ui-react'
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { getDocumentBySlug } from '../api'
 import DocumentPaper from '../components/DocumentPaper'
 import { printAsPdf } from '../lib/print'
 
 export default function Document() {
-  const navigate = useNavigate()
   const { slug } = useParams()
   const [doc, setDoc] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -33,7 +32,6 @@ export default function Document() {
         <p style={{ color: '#8b0000', marginBottom: '1rem' }}>
           {error || '공문을 찾을 수 없습니다.'}
         </p>
-        <Button variant="outline" onClick={() => navigate("/")}>← 목록으로</Button>
       </div>
     )
   }
@@ -44,7 +42,6 @@ export default function Document() {
 
       {/* 화면 전용 액션 버튼 */}
       <div className="doc-actions no-print">
-        <Button variant="outline" size="sm" onClick={() => navigate("/")}>← 목록으로</Button>
         <Button variant="primary" size="sm" onClick={() => printAsPdf(doc.title)}>
           PDF 저장 / 인쇄
         </Button>

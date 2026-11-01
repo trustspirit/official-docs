@@ -1,0 +1,149 @@
+import { Button } from 'trust-ui-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { listContacts, sendDocumentMail } from '../api'
+import DocumentPaper from './DocumentPaper'
+import { buildPdfBlob } from '../lib/mobilePdf'
+
+const MAX_PDF_BYTES = 7 * 1024 * 1024 // 서버 한도와 동일
+
+const blobToBase64 = (blob) =>
+  new Promise((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = () => resolve(String(r.result).split(',')[1] || '')
+    r.onerror = () => reject(new Error('PDF를 읽지 못했습니다'))
+    r.readAsDataURL(blob)
+  })
+
+// 공문 이메일 발송 — 직책 그룹 단위로 수신자를 고르고 BCC 로 보낸다
+export default function SendMailModal({ doc, onClose }) {
+  const paperRef = useRef(null)
+  const [groups, setGroups] = useState([])
+  const [contacts, setContacts] = useState([])
+  const [selected, setSelected] = useState([])
+  const [test, setTest] = useState(false)
+  const [subject, setSubject] = useState(doc.title)
+  const [message, setMessage] = useState(`${doc.title} 공문을 보내 드립니다.\n\n자세한 내용을 확인해 주시기 바랍니다.`)
+  const [mode, setMode] = useState(doc.is_published ? 'link' : 'pdf')
+  const [busy, setBusy] = useState('')
+  const [error, setError] = useState('')
+  const [done, setDone] = useState('')
+
+  useEffect(() => {
+    listContacts()
+      .then((r) => { setGroups(r.groups); setContacts(r.contacts) })
+      .catch((e) => setError(e.message))
+  }, [])
+
+  useEffect(() => {
+    const onKey = (e) => e.key === 'Escape' && !busy && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose, busy])
+
+  // 그룹별 인원 / 선택된 그룹의 중복 제거된 수신 인원
+  const countOf = (g) => new Set(contacts.filter((c) => g.roles.includes(c.role)).map((c) => c.email)).size
+  const groupTotal = useMemo(() => {
+    const roles = groups.filter((g) => selected.includes(g.key)).flatMap((g) => g.roles)
+    return new Set(contacts.filter((c) => roles.includes(c.role)).map((c) => c.email)).size
+  }, [groups, contacts, selected])
+  const total = test ? 1 : groupTotal
+
+  const toggle = (key) => setSelected((s) => (s.includes(key) ? s.filter((k) => k !== key) : [...s, key]))
+
+  const handleSend = async () => {
+    setError('')
+    if (!subject.trim()) return setError('메일 제목을 입력하세요')
+    if (!total) return setError('수신 대상을 한 개 이상 선택하세요')
+    if (!confirm(test ? `"${subject}" 메일을 테스트로 나에게만 발송합니다.\n보낼까요?` : `"${subject}" 메일을 ${total}명에게 BCC로 발송합니다.\n보낼까요?`)) return
+    try {
+      let pdf_base64
+      if (mode === 'pdf') {
+        setBusy('PDF 만드는 중…')
+        const blob = await buildPdfBlob(paperRef.current.querySelector('.doc-paper'))
+        if (blob.size > MAX_PDF_BYTES) throw new Error('PDF가 너무 큽니다(7MB 초과). 링크 방식으로 보내세요')
+        pdf_base64 = await blobToBase64(blob)
+      }
+      setBusy('발송 중…')
+      const r = await sendDocumentMail(doc.id, { subject, message, mode, groups: selected, test, pdf_base64 })
+      setDone(r.test ? `테스트 메일을 ${r.to} 로 발송했습니다.` : `${r.sent}명에게 발송했습니다.`)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy('')
+    }
+  }
+
+  return createPortal(
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="공문 이메일 발송">
+      <div className="modal-card">
+        <h2 className="modal-title">이메일 발송</h2>
+        <p className="form-hint" style={{ marginBottom: '1rem' }}>{doc.title}</p>
+
+        {done ? (
+          <>
+            <div className="alert alert-success">{done}</div>
+            <div className="modal-actions"><Button variant="primary" onClick={onClose}>닫기</Button></div>
+          </>
+        ) : (
+          <>
+            {error && <div className="alert alert-error">{error}</div>}
+
+            <div className="form-group">
+              <label className="form-label">수신 대상 (BCC)</label>
+              <label className="check-row" style={{ fontWeight: 700 }}>
+                <input type="checkbox" checked={test} onChange={(e) => setTest(e.target.checked)} />
+                <span>테스트: 나에게만 발송</span>
+              </label>
+              {groups.map((g) => (
+                <label key={g.key} className="check-row" style={test ? { opacity: 0.4 } : undefined}>
+                  <input type="checkbox" disabled={test} checked={selected.includes(g.key)} onChange={() => toggle(g.key)} />
+                  <span>{g.label}</span>
+                  <span className="check-row__count">{countOf(g)}명</span>
+                </label>
+              ))}
+              <p className="form-hint">{test ? '테스트 발송: 로그인한 내 이메일로만 전달됩니다' : `선택한 직책의 모든 분께 숨은 참조(BCC)로 발송됩니다 · 총 ${total}명`}</p>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">메일 제목</label>
+              <input className="form-input" value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={200} />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">발송 내용</label>
+              <textarea className="form-textarea" rows={5} value={message} onChange={(e) => setMessage(e.target.value)} maxLength={5000} />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">전달 방식</label>
+              <label className="check-row">
+                <input type="radio" name="mode" checked={mode === 'link'} disabled={!doc.is_published} onChange={() => setMode('link')} />
+                <span>공문 링크 전달{!doc.is_published && ' (비공개 공문은 불가)'}</span>
+              </label>
+              <label className="check-row">
+                <input type="radio" name="mode" checked={mode === 'pdf'} onChange={() => setMode('pdf')} />
+                <span>PDF 첨부</span>
+              </label>
+            </div>
+
+            <div className="modal-actions">
+              <Button variant="outline" onClick={onClose} disabled={!!busy}>취소</Button>
+              <Button variant="primary" onClick={handleSend} disabled={!!busy || !total}>
+                {busy || (test ? '나에게 테스트 발송' : `${total}명에게 발송`)}
+              </Button>
+            </div>
+          </>
+        )}
+
+        {/* PDF 생성용 숨은 용지 */}
+        {mode === 'pdf' && (
+          <div style={{ position: 'fixed', left: '-10000px', top: 0 }} aria-hidden="true">
+            <div ref={paperRef}><DocumentPaper doc={doc} /></div>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body,
+  )
+}

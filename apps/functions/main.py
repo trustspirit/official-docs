@@ -12,6 +12,8 @@ from auth import require_admin, current_admin_email
 from ai import generate_document, VALID_CLOSINGS, VALID_TYPE_PREFS
 from sanitize import sanitize_html
 import shortlinks
+import contacts as contacts_lib
+import mailer
 from storage_utils import MAX_IMAGE_BYTES, sniff_image_type, upload_image, load_image
 
 # 로컬 개발용 설정은 .env.local (firebase deploy 에 포함되지 않음). 배포 환경은 Firebase 시크릿 사용
@@ -367,10 +369,176 @@ def delete_document(doc_id: str):
     return _json({"message": "삭제되었습니다"})
 
 
+# ── 주소록 · 메일 발송 ─────────────────────────────────────────────────────────
+
+MAIL_LOGS_COLLECTION = "mail_logs"
+
+
+def _admin_or_error():
+    ok, err = require_admin(flask_request)
+    if ok:
+        return None
+    return _json({"detail": err}, 403 if "권한" in err else 401)
+
+
+def _contact_to_dict(snap) -> dict:
+    d = snap.to_dict() or {}
+    return {"id": snap.id, **{k: d.get(k, "") for k in ("unit", "role", "name", "phone", "email", "source")}}
+
+
+def _all_contacts() -> list[dict]:
+    items = [_contact_to_dict(s) for s in db.collection(contacts_lib.CONTACTS_COLLECTION).stream()]
+    order = {r: i for i, r in enumerate(contacts_lib.ALL_ROLES)}
+    items.sort(key=lambda c: (order.get(c["role"], 99), c["unit"], c["name"]))
+    return items
+
+
+@flask_app.route("/api/contacts", methods=["GET", "POST", "OPTIONS"])
+def contacts_collection():
+    if flask_request.method == "OPTIONS":
+        return _preflight()
+    denied = _admin_or_error()
+    if denied:
+        return denied
+
+    if flask_request.method == "GET":
+        return _json({"groups": contacts_lib.ROLE_GROUPS, "contacts": _all_contacts()})
+
+    body = flask_request.get_json(silent=True) or {}
+    role = str(body.get("role", "")).strip()
+    email = str(body.get("email", "")).strip().lower()
+    if role not in contacts_lib.ALL_ROLES:
+        return _json({"detail": "직책이 올바르지 않습니다"}, 400)
+    if not contacts_lib.valid_email(email):
+        return _json({"detail": "이메일 형식이 올바르지 않습니다"}, 400)
+    data = {
+        "unit": str(body.get("unit", "")).strip(), "role": role,
+        "name": str(body.get("name", "")).strip(), "phone": str(body.get("phone", "")).strip(),
+        "email": email, "source": "manual",
+    }
+    _, ref = db.collection(contacts_lib.CONTACTS_COLLECTION).add(data)
+    return _json({"id": ref.id, **data}, 201)
+
+
+@flask_app.route("/api/contacts/<contact_id>", methods=["DELETE", "OPTIONS"])
+def delete_contact(contact_id: str):
+    if flask_request.method == "OPTIONS":
+        return _preflight()
+    denied = _admin_or_error()
+    if denied:
+        return denied
+    db.collection(contacts_lib.CONTACTS_COLLECTION).document(contact_id).delete()
+    return _json({"message": "삭제되었습니다"})
+
+
+@flask_app.route("/api/contacts/import", methods=["POST", "OPTIONS"])
+def import_contacts():
+    """CSV 로 주소록을 갱신한다. 이전에 CSV 로 올린 연락처는 교체하고, 직접 추가한 연락처는 유지."""
+    if flask_request.method == "OPTIONS":
+        return _preflight()
+    denied = _admin_or_error()
+    if denied:
+        return denied
+    text = (flask_request.get_json(silent=True) or {}).get("csv", "")
+    if not isinstance(text, str) or not text.strip():
+        return _json({"detail": "CSV 내용이 비어 있습니다"}, 400)
+    try:
+        parsed, skipped = contacts_lib.parse_csv(text)
+    except ValueError as e:
+        return _json({"detail": str(e)}, 400)
+    if not parsed:
+        return _json({"detail": "가져올 연락처가 없습니다", "skipped": skipped}, 400)
+
+    col = db.collection(contacts_lib.CONTACTS_COLLECTION)
+    old = [s.reference for s in col.stream() if (s.to_dict() or {}).get("source", "csv") == "csv"]
+    ops = [("delete", r, None) for r in old] + [("set", col.document(), {**c, "source": "csv"}) for c in parsed]
+    for i in range(0, len(ops), 400):  # 배치 한도(500) 안쪽으로 나눠 기록
+        batch = db.batch()
+        for kind, ref, data in ops[i:i + 400]:
+            batch.delete(ref) if kind == "delete" else batch.set(ref, data)
+        batch.commit()
+    return _json({"imported": len(parsed), "skipped": skipped})
+
+
+@flask_app.route("/api/documents/<doc_id>/send", methods=["POST", "OPTIONS"])
+def send_document(doc_id: str):
+    if flask_request.method == "OPTIONS":
+        return _preflight()
+    denied = _admin_or_error()
+    if denied:
+        return denied
+
+    snap = db.collection(DOCS_COLLECTION).document(doc_id).get()
+    if not snap.exists:
+        return _json({"detail": "문서를 찾을 수 없습니다"}, 404)
+    doc = snap.to_dict() or {}
+
+    body = flask_request.get_json(silent=True) or {}
+    subject = str(body.get("subject", "")).strip()
+    message = str(body.get("message", "")).strip()
+    mode = body.get("mode")
+    group_keys = body.get("groups") or []
+    if not subject:
+        return _json({"detail": "메일 제목을 입력하세요"}, 400)
+    if mode not in ("link", "pdf"):
+        return _json({"detail": "전달 방식은 link 또는 pdf 여야 합니다"}, 400)
+    if len(subject) > 200 or len(message) > 5000:
+        return _json({"detail": "제목 또는 내용이 너무 깁니다"}, 400)
+
+    test = body.get("test") is True  # 테스트: 주소록 대신 로그인한 관리자 본인에게만 발송
+    roles = contacts_lib.group_roles(group_keys if isinstance(group_keys, list) else [])
+    if not test and not roles:
+        return _json({"detail": "수신 대상을 한 개 이상 선택하세요"}, 400)
+
+    link = pdf = None
+    if mode == "link":
+        if not doc.get("is_published", True):
+            return _json({"detail": "비공개 공문은 링크로 보낼 수 없습니다. 공개로 바꾸거나 PDF 첨부로 보내세요"}, 400)
+        link = f"{_public_base()}/doc/{doc.get('slug', '')}"
+    else:
+        import base64, binascii
+        try:
+            pdf = base64.b64decode(str(body.get("pdf_base64", "")), validate=True)
+        except (binascii.Error, ValueError):
+            return _json({"detail": "PDF 데이터가 올바르지 않습니다"}, 400)
+        if not pdf.startswith(b"%PDF"):
+            return _json({"detail": "PDF 파일이 아닙니다"}, 400)
+        if len(pdf) > mailer.MAX_PDF_BYTES:
+            return _json({"detail": "PDF가 너무 큽니다(7MB 초과). 링크 방식으로 보내세요"}, 400)
+
+    if test:
+        recipients = [current_admin_email(flask_request)]
+    else:
+        recipients = contacts_lib.unique_emails([c for c in _all_contacts() if c["role"] in roles])
+    if not recipients or not recipients[0]:
+        return _json({"detail": "선택한 직책에 등록된 이메일이 없습니다"}, 400)
+
+    try:
+        sender = mailer.sender_address()
+        msg = mailer.build_message(
+            sender=sender, subject=subject, body=message, bcc=recipients, link=link, pdf=pdf,
+            pdf_name=f"{(doc.get('title') or 'document').replace('/', '-')[:60]}.pdf",
+        )
+        mailer.send(msg, recipients)
+    except mailer.MailNotConfigured as e:
+        print(f"[mail] 설정 오류: {e}")
+        return _json({"detail": "메일 발송 설정이 완료되지 않았습니다"}, 500)
+    except Exception as e:
+        print(f"[mail] 발송 실패: {e!r}")
+        return _json({"detail": f"메일 발송에 실패했습니다: {type(e).__name__}"}, 502)
+
+    db.collection(MAIL_LOGS_COLLECTION).add({
+        "doc_id": doc_id, "doc_title": doc.get("title", ""), "subject": subject, "mode": mode,
+        "groups": group_keys, "test": test, "recipient_count": len(recipients),
+        "sent_by": current_admin_email(flask_request), "sent_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return _json({"sent": len(recipients), "test": test, "to": recipients[0] if test else None})
+
+
 # ── Firebase Function 진입점 ───────────────────────────────────────────────────
 
 @https_fn.on_request(
-    secrets=["ANTHROPIC_API_KEY", "ADMIN_EMAILS"],
+    secrets=["ANTHROPIC_API_KEY", "ADMIN_EMAILS", "SMTP_USER", "SMTP_APP_PASSWORD"],
     cors=options.CorsOptions(
         cors_origins="*",
         cors_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],

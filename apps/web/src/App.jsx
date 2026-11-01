@@ -5,6 +5,7 @@ import Login from './pages/admin/Login'
 import Dashboard from './pages/admin/Dashboard'
 import Create from './pages/admin/Create'
 import Edit from './pages/admin/Edit'
+import Contacts from './pages/admin/Contacts'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/admin/login" element={<Login />} />
         <Route path="/admin" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/admin/create" element={<ProtectedRoute><Create /></ProtectedRoute>} />
+        <Route path="/admin/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />
         <Route path="/admin/edit/:id" element={<ProtectedRoute><Edit /></ProtectedRoute>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />

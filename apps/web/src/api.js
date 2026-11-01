@@ -63,3 +63,10 @@ export async function uploadImage(file) {
   if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`)
   return data // { path, url, media_type }
 }
+
+// Contacts (주소록) & mail
+export const listContacts = () => api.get('/contacts')
+export const addContact = (data) => api.post('/contacts', data)
+export const deleteContact = (id) => api.delete(`/contacts/${id}`)
+export const importContactsCsv = (csv) => api.post('/contacts/import', { csv })
+export const sendDocumentMail = (id, data) => api.post(`/documents/${id}/send`, data)
