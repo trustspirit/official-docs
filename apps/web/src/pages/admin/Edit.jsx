@@ -1,6 +1,8 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { generateContent, getDocument, updateDocument } from '../../api'
+import ImageAttach from '../../components/ImageAttach'
+import { loadDraft, saveDraft, clearDraft, fmtTime } from '../../hooks/draft'
 
 const DOC_TYPES = ['Letter', 'Notice']
 
@@ -8,8 +10,29 @@ export default function Edit() {
   const { id } = useParams()
   const navigate = useNavigate()
   const editorRef = useRef(null)
+  const DRAFT_KEY = `draft:edit:${id}`
 
   const [form, setForm] = useState(null)
+  const [images, setImagesState] = useState([])
+  const [restoredAt, setRestoredAt] = useState(null)
+  const [savedAt, setSavedAt] = useState(null)
+  const dirty = useRef(false) // 사용자가 수정한 뒤에만 임시저장
+  const timer = useRef(null)
+  const latest = useRef(null)
+  latest.current = { form, images }
+  const setImages = (v) => { dirty.current = true; setImagesState(v) }
+
+  const scheduleSave = useCallback(() => {
+    if (!dirty.current) return
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => {
+      const body = editorRef.current ? editorRef.current.innerHTML : ''
+      if (saveDraft(DRAFT_KEY, { ...latest.current, body })) setSavedAt(Date.now())
+    }, 600)
+  }, [DRAFT_KEY])
+
+  useEffect(() => { scheduleSave() }, [form, images, scheduleSave])
+  useEffect(() => () => clearTimeout(timer.current), [])
   const [generating, setGenerating] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -18,6 +41,15 @@ export default function Edit() {
   useEffect(() => {
     getDocument(id)
       .then((doc) => {
+        const draft = loadDraft(DRAFT_KEY)
+        if (draft?.form) {
+          dirty.current = true
+          setImagesState(draft.images || [])
+          setRestoredAt(draft.savedAt)
+          setSavedAt(draft.savedAt)
+          setForm({ ...draft.form, content: draft.body ?? draft.form.content })
+          return
+        }
         setForm({
           issued_date: doc.issued_date,
           recipients: doc.recipients,
@@ -42,7 +74,7 @@ export default function Edit() {
     }
   }, [form])
 
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+  const set = (k) => (e) => { dirty.current = true; setForm((f) => ({ ...f, [k]: e.target.value })) }
 
   const handleRegenerate = async () => {
     setError('')
@@ -54,7 +86,9 @@ export default function Edit() {
         cc: form.cc,
         sender: form.sender,
         key_points: form.key_points,
+        images: images.map((im) => im.path),
       })
+      dirty.current = true
       setForm((f) => ({ ...f, title: res.title, doc_type: res.doc_type }))
       if (editorRef.current) editorRef.current.innerHTML = res.content
     } catch (e) {
@@ -62,6 +96,20 @@ export default function Edit() {
     } finally {
       setGenerating(false)
     }
+  }
+
+  const discardDraft = () => {
+    if (!window.confirm('저장하지 않은 수정 내용이 모두 삭제됩니다. 취소하시겠습니까?')) return
+    clearTimeout(timer.current)
+    clearDraft(DRAFT_KEY)
+    navigate('/admin')
+  }
+
+  const revertToOriginal = () => {
+    if (!window.confirm('임시저장된 수정 내용을 지우고 저장된 원본을 다시 불러옵니다.')) return
+    clearTimeout(timer.current)
+    clearDraft(DRAFT_KEY)
+    window.location.reload()
   }
 
   const handleSave = async () => {
@@ -81,6 +129,8 @@ export default function Edit() {
         raw_input: form.key_points,
         is_published: form.is_published,
       })
+      clearTimeout(timer.current)
+      clearDraft(DRAFT_KEY)
       navigate(`/doc/${doc.slug}`)
     } catch (e) {
       setError(e.message)
@@ -97,12 +147,19 @@ export default function Edit() {
       <header className="site-header">
         <span className="site-header__title">공문 편집</span>
         <nav className="site-header__nav">
+          {savedAt && <span className="draft-status">임시저장됨 {fmtTime(savedAt)}</span>}
           <Link to="/admin" className="btn btn-secondary btn-sm">← 대시보드</Link>
         </nav>
       </header>
 
       <main className="main-content">
         {error && <div className="alert alert-error">{error}</div>}
+        {restoredAt && (
+          <div className="alert alert-success">
+            저장하지 않은 수정 내용을 불러왔습니다 ({fmtTime(restoredAt)} 임시저장).{' '}
+            <button type="button" className="btn btn-secondary btn-sm" onClick={revertToOriginal}>저장된 원본으로 되돌리기</button>
+          </div>
+        )}
 
         <div className="admin-wrapper">
           <p style={{ fontSize: '0.82rem', color: '#666', marginBottom: '1.2rem' }}>
@@ -139,6 +196,8 @@ export default function Edit() {
             <textarea className="form-textarea" value={form.key_points} onChange={set('key_points')} rows={4} />
           </div>
 
+          <ImageAttach images={images} onChange={setImages} />
+
           <button className="btn btn-secondary" onClick={handleRegenerate} disabled={generating} style={{ marginBottom: '1.5rem' }}>
             {generating ? <><span className="spinner" /> 생성 중…</> : '↺ AI로 공문 재생성'}
           </button>
@@ -167,6 +226,7 @@ export default function Edit() {
               className="body-editor"
               contentEditable
               suppressContentEditableWarning
+              onInput={() => { dirty.current = true; scheduleSave() }}
             />
           </div>
 
@@ -197,7 +257,7 @@ export default function Edit() {
             <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
               {saving ? <><span className="spinner" /> 저장 중…</> : '저장하기'}
             </button>
-            <Link to="/admin" className="btn btn-secondary">취소</Link>
+            <button type="button" className="btn btn-secondary" onClick={discardDraft}>취소</button>
           </div>
         </div>
       </main>

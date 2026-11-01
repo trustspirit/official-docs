@@ -1,6 +1,10 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { generateContent, createDocument } from '../../api'
+import ImageAttach from '../../components/ImageAttach'
+import { loadDraft, saveDraft, clearDraft, fmtTime } from '../../hooks/draft'
+
+const DRAFT_KEY = 'draft:create'
 
 function toSlug() {
   return `doc-${Date.now()}`
@@ -9,9 +13,11 @@ function toSlug() {
 export default function Create() {
   const navigate = useNavigate()
   const editorRef = useRef(null)
+  const [restored] = useState(() => loadDraft(DRAFT_KEY))
+  const [savedAt, setSavedAt] = useState(restored?.savedAt || null)
 
   // AI가 유추 불가능한 필드만 폼에 노출
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(restored?.form || {
     issued_date: new Date().toISOString().slice(0, 10),
     recipients: '',
     cc: '',
@@ -20,17 +26,50 @@ export default function Create() {
   })
 
   // AI가 생성한 필드 (생성 후 편집 가능)
-  const [generated, setGenerated] = useState({
+  const [generated, setGenerated] = useState(restored?.generated || {
     title: '',
     doc_type: '',
   })
 
-  const [slug, setSlug] = useState(toSlug())
-  const [isPublished, setIsPublished] = useState(true)
+  const [images, setImages] = useState(restored?.images || [])
+  const [slug, setSlug] = useState(restored?.slug || toSlug())
+  const [isPublished, setIsPublished] = useState(restored?.isPublished ?? true)
   const [generating, setGenerating] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [hasGenerated, setHasGenerated] = useState(false)
+  const [hasGenerated, setHasGenerated] = useState(!!restored?.hasGenerated)
+  // 편집 영역은 생성 후에야 마운트되므로, 생성된 본문은 state로 보관했다가 마운트 뒤에 주입
+  const [generatedBody, setGeneratedBody] = useState(restored?.body ? { html: restored.body } : null)
+
+  useEffect(() => {
+    if (generatedBody && editorRef.current) editorRef.current.innerHTML = generatedBody.html
+  }, [generatedBody])
+
+  // ── 임시저장: 변경 후 0.6초 뒤 자동 저장 ──
+  const latest = useRef(null)
+  latest.current = { form, generated, images, slug, isPublished, hasGenerated }
+  const timer = useRef(null)
+
+  const scheduleSave = useCallback(() => {
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => {
+      const d = latest.current
+      const body = editorRef.current ? editorRef.current.innerHTML : ''
+      const empty = !d.form.recipients && !d.form.cc && !d.form.sender && !d.form.key_points && !body && !d.images.length
+      if (empty) { clearDraft(DRAFT_KEY); setSavedAt(null); return }
+      if (saveDraft(DRAFT_KEY, { ...d, body })) setSavedAt(Date.now())
+    }, 600)
+  }, [])
+
+  useEffect(() => { scheduleSave() }, [form, generated, images, slug, isPublished, hasGenerated, generatedBody, scheduleSave])
+  useEffect(() => () => clearTimeout(timer.current), [])
+
+  const discardDraft = () => {
+    if (!window.confirm('작성 중인 내용이 모두 삭제됩니다. 취소하시겠습니까?')) return
+    clearTimeout(timer.current)
+    clearDraft(DRAFT_KEY)
+    navigate('/admin')
+  }
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
@@ -50,10 +89,11 @@ export default function Create() {
         cc: form.cc,
         sender: form.sender,
         key_points: form.key_points,
+        images: images.map((im) => im.path),
       })
       // res = { title, doc_type, content }
       setGenerated({ title: res.title, doc_type: res.doc_type })
-      if (editorRef.current) editorRef.current.innerHTML = res.content
+      setGeneratedBody({ html: res.content })
       setHasGenerated(true)
     } catch (e) {
       setError(e.message)
@@ -85,6 +125,8 @@ export default function Create() {
         raw_input: form.key_points,
         is_published: isPublished,
       })
+      clearTimeout(timer.current)
+      clearDraft(DRAFT_KEY)
       navigate(`/doc/${doc.slug}`)
     } catch (e) {
       setError(e.message)
@@ -98,12 +140,18 @@ export default function Create() {
       <header className="site-header">
         <span className="site-header__title">새 공문 작성</span>
         <nav className="site-header__nav">
+          {savedAt && <span className="draft-status">임시저장됨 {fmtTime(savedAt)}</span>}
           <Link to="/admin" className="btn btn-secondary btn-sm">← 대시보드</Link>
         </nav>
       </header>
 
       <main className="main-content">
         {error && <div className="alert alert-error">{error}</div>}
+        {restored && (
+          <div className="alert alert-success">
+            임시저장된 작성 내용을 불러왔습니다{restored.savedAt ? ` (${fmtTime(restored.savedAt)} 저장)` : ''}.
+          </div>
+        )}
 
         <div className="admin-wrapper">
           {/* ── AI가 유추 불가한 필수 정보 ── */}
@@ -148,6 +196,8 @@ export default function Create() {
             />
           </div>
 
+          <ImageAttach images={images} onChange={setImages} />
+
           <button className="btn btn-primary" onClick={handleGenerate} disabled={generating}>
             {generating ? <><span className="spinner" /> AI 생성 중…</> : '✦ AI로 공문 생성'}
           </button>
@@ -190,6 +240,7 @@ export default function Create() {
                   className="body-editor"
                   contentEditable
                   suppressContentEditableWarning
+                  onInput={scheduleSave}
                 />
               </div>
 
@@ -216,7 +267,7 @@ export default function Create() {
                 <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
                   {saving ? <><span className="spinner" /> 저장 중…</> : '저장하기'}
                 </button>
-                <Link to="/admin" className="btn btn-secondary">취소</Link>
+                <button type="button" className="btn btn-secondary" onClick={discardDraft}>취소</button>
               </div>
             </>
           )}
