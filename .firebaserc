@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "church-docs-official"
+  },
+  "targets": {
+    "church-docs-official": {
+      "hosting": {
+        "app": [
+          "church-docs-official",
+          "gmdocs"
+        ]
+      }
+    }
   }
 }
