@@ -199,7 +199,7 @@ def generate():
             closing=closing,
         )
         # result = {"title": ..., "doc_type": ..., "content": ...}
-        result["content"] = _shorten(result["content"])
+        # 단축 링크는 저장할 때만 만든다 (재생성·취소해도 사용되지 않는 링크가 남지 않도록)
         return _json(result)
     except Exception as e:
         return _json({"detail": f"AI 생성 오류: {str(e)}"}, 500)
@@ -279,6 +279,7 @@ def create_document():
         return _json({"detail": "이미 존재하는 슬러그입니다"}, 409)
 
     now = datetime.now(timezone.utc).isoformat()
+    content = _shorten(sanitize_html(body["content"]))
     data = {
         "slug": body["slug"],
         "title": body["title"],
@@ -288,7 +289,8 @@ def create_document():
         "recipients": body["recipients"],
         "cc": body.get("cc", ""),
         "sender": body["sender"],
-        "content": _shorten(sanitize_html(body["content"])),
+        "content": content,
+        "link_codes": shortlinks.codes_in(db, content),
         "raw_input": body.get("raw_input", ""),
         "is_published": body.get("is_published", True),
         "created_at": now,
@@ -320,6 +322,7 @@ def update_document(doc_id: str):
         return _json({"detail": "logo_style 값이 올바르지 않습니다"}, 400)
     if "content" in updates:
         updates["content"] = _shorten(sanitize_html(updates["content"]))
+        updates["link_codes"] = shortlinks.codes_in(db, updates["content"])
 
     # 슬러그 변경 시 중복 확인
     if "slug" in updates and updates["slug"] != snap.to_dict().get("slug"):
@@ -330,8 +333,15 @@ def update_document(doc_id: str):
             return _json({"detail": "이미 존재하는 슬러그입니다"}, 409)
 
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    previous = snap.to_dict() or {}
     ref.update(updates)
-    updated = snap.to_dict()
+    if "link_codes" in updates:
+        # 이전 본문에 있었으나 새 본문에서 빠진 단축 링크 정리 (AI 재생성·수정으로 URL이 바뀐 경우)
+        old_codes = previous.get("link_codes")
+        if old_codes is None:
+            old_codes = shortlinks.codes_in(db, previous.get("content", ""))
+        shortlinks.release_unused(db, DOCS_COLLECTION, doc_id, set(old_codes) - set(updates["link_codes"]))
+    updated = previous
     updated.update(updates)
     return _json(_doc_to_dict(doc_id, updated))
 
@@ -345,9 +355,15 @@ def delete_document(doc_id: str):
         return _json({"detail": err}, 401)
 
     ref = db.collection(DOCS_COLLECTION).document(doc_id)
-    if not ref.get().exists:
+    snap = ref.get()
+    if not snap.exists:
         return _json({"detail": "문서를 찾을 수 없습니다"}, 404)
+    data = snap.to_dict() or {}
+    codes = data.get("link_codes")
+    if codes is None:
+        codes = shortlinks.codes_in(db, data.get("content", ""))
     ref.delete()
+    shortlinks.release_unused(db, DOCS_COLLECTION, doc_id, set(codes))  # 이 문서만 쓰던 단축 링크 삭제
     return _json({"message": "삭제되었습니다"})
 
 

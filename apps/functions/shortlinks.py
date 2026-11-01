@@ -61,3 +61,24 @@ def shorten_links(db, content: str, base_url: str) -> str:
         return f'<a href="{html.escape(short)}"{m.group(2)}>{new_text}</a>'
 
     return _LINK_RE.sub(repl, content or "")
+
+
+_CODE_IN_HREF = re.compile(r'<a href="[^"]*/s/([0-9A-Za-z]{7,12})"')
+
+
+def codes_in(db, content: str) -> list[str]:
+    """본문 링크 중 우리가 만든 단축 링크 코드(DB에 실제 존재하는 것만)."""
+    found = sorted(set(_CODE_IN_HREF.findall(content or "")))
+    return [c for c in found if db.collection(COLLECTION).document(c).get().exists]
+
+
+def release_unused(db, docs_collection: str, doc_id: str, codes) -> int:
+    """문서에서 빠진 코드 중 다른 문서가 쓰지 않는 단축 링크는 삭제. 삭제한 개수 반환."""
+    removed = 0
+    for code in codes:
+        others = db.collection(docs_collection).where("link_codes", "array_contains", code).limit(2).stream()
+        if any(d.id != doc_id for d in others):
+            continue  # 다른 문서가 같은 링크를 사용 중
+        db.collection(COLLECTION).document(code).delete()
+        removed += 1
+    return removed
