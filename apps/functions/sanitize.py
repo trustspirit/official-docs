@@ -79,7 +79,50 @@ def _attribute_filter(tag: str, attr: str, value: str):
     return value
 
 
-def sanitize_html(html: str) -> str:
+_TAG_SPLIT_RE = re.compile(r"(<[^>]*>)")
+# URL은 ASCII 문자만 (한글 조사가 바로 붙어도 링크에 포함되지 않도록), 이메일은 URL 뒤에 시도
+_AUTOLINK_RE = re.compile(
+    r"(?P<url>(?:https?://|www\.)[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+)"
+    r"|(?P<email>[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,})"
+)
+_TRAILING = ".,;:!?)]}'"
+
+
+def _link(m: re.Match) -> str:
+    if m.group("email"):
+        e = m.group("email")
+        return f'<a href="mailto:{e}">{e}</a>'
+    url = m.group("url")
+    tail = ""
+    while url and url[-1] in _TRAILING:
+        # 균형 잡힌 괄호는 URL의 일부로 유지
+        if url[-1] == ")" and url.count("(") >= url.count(")"):
+            break
+        tail = url[-1] + tail
+        url = url[:-1]
+    if url.endswith("&amp") or not url:
+        return m.group(0)
+    href = url if url.startswith("http") else f"https://{url}"
+    return f'<a href="{href}">{url}</a>{tail}'
+
+
+def autolink(html: str) -> str:
+    """정리된 HTML의 텍스트에서 URL·이메일을 링크로 변환 (이미 <a> 안이면 건너뜀)."""
+    out, depth = [], 0
+    for part in _TAG_SPLIT_RE.split(html):
+        if part.startswith("<") and part.endswith(">"):
+            low = part.lower()
+            if re.match(r"<a[\s>]", low):
+                depth += 1
+            elif low.startswith("</a"):
+                depth = max(0, depth - 1)
+            out.append(part)
+        else:
+            out.append(part if depth else _AUTOLINK_RE.sub(_link, part))
+    return "".join(out)
+
+
+def _clean(html: str) -> str:
     return nh3.clean(
         html or "",
         tags=ALLOWED_TAGS,
@@ -88,3 +131,8 @@ def sanitize_html(html: str) -> str:
         link_rel="noopener noreferrer",
         attribute_filter=_attribute_filter,
     )
+
+
+def sanitize_html(html: str) -> str:
+    # 1) 정리 → 2) 본문 텍스트의 URL·이메일 자동 링크 → 3) 새 링크도 같은 규칙으로 재정리(rel 부여)
+    return _clean(autolink(_clean(html)))
