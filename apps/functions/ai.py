@@ -1,43 +1,116 @@
 from __future__ import annotations
 import os
-from openai import OpenAI
+import json
+import re
 
-SYSTEM_PROMPT = """당신은 예수 그리스도 후기 성도 교회의 공식 공문(公文) 작성 전문가입니다.
-핵심 내용과 기본 정보를 바탕으로 공문의 제목, 문서 유형, 본문을 작성하여 JSON으로 반환합니다.
+SYSTEM_PROMPT = """당신은 예수 그리스도 후기 성도 교회 본부가 전 세계 지도자들에게 보내는 공식 공문(Communication Library)의 한국어 판 작성 전문가입니다.
+입력된 정보와 핵심 내용을 바탕으로, 실제 교회 공문과 같은 문체·구성의 공문을 작성하여 JSON으로 반환합니다.
 
-[공문 작성 원칙]
-1. 격식체를 사용합니다: ~하십시오, ~바랍니다, ~예정입니다, ~드립니다, ~하도록 해 주시기 바랍니다
-2. 첫 단락에서 공문의 목적과 핵심 내용을 명확히 제시합니다
-3. 내용을 논리적 순서로 구성하며, 필요 시 소제목으로 구분합니다
-4. 행동 지침이나 안내사항은 구체적이고 명확하게 기술합니다
-5. 날짜·시간·장소 등 구체적 정보는 <strong> 태그로 강조합니다
-6. 교회 문화와 정서에 맞는 존경과 따뜻함이 담긴 표현을 사용합니다
-7. 불필요한 서론이나 반복 없이 간결하게 작성합니다
+[문서 유형 — doc_type은 반드시 "Letter" 또는 "Notice" 중 하나]
+- Letter: 제일회장단 등 지도부가 보내는 서한. 정책·교리·조직 변경, 지침, 권고 등 비중 있는 내용.
+  · 본문 첫 줄을 <p>사랑하는 형제 자매 여러분,</p> 로 시작합니다.
+  · 마지막은 끝인사(예: <p>여러분의 진실한,</p> 또는 <p>진심을 담아,</p>) 다음에 서명을 둡니다.
+  · 서명은 <div class="signature"><p>…</p><p>…</p></div> 형태로, 입력된 '발신' 항목의 각 줄을 <p> 하나씩 그대로 사용합니다. 이름을 지어내지 마십시오.
+- Notice: 부서·위원회가 보내는 공지. 행사 안내, 자료 공개, 일정·방법 변경, 알림 등.
+  · 인사말과 서명 없이 바로 본문을 시작합니다. ('발신'은 화면에 From으로 별도 표시되므로 본문에 쓰지 않습니다.)
+유형은 핵심 내용의 성격(지도부의 서한인지, 부서의 공지인지)과 발신 정보를 보고 판단합니다.
 
-[문서 유형 선택 기준]
-- 알림: 일정·행사·변경 사항 등 정보 전달
-- 공지: 중요한 사항을 공식적으로 알릴 때
-- 지시: 특정 행동이나 준수 사항을 요청할 때
-- 요청: 협조·지원·참여를 부탁할 때
-- 기타: 위 분류에 해당하지 않는 경우
+[제목]
+- 간결한 명사형 제목. 예: "청녀 연령 그룹 명칭", "교회 활동 안전 지침", "『가정과 교회를 위한 찬송가』 새로운 수록곡 모음 공개", "스테이크 및 와드 지도자를 위한 2027년 계획 안내서".
 
-[본문 HTML 출력 형식 — 반드시 이 태그만 사용]
-- 소제목: <h2>
-- 하위 소제목: <h3>
-- 단락: <p>
-- 비순서 목록: <ul><li>
-- 순서 목록: <ol><li>
-- 강조 텍스트: <strong>
-- 참고/주석: <p class="note"><em>내용</em></p>
+[문체]
+- 정중한 격식체: ~합니다, ~입니다, ~바랍니다, ~권장합니다, ~예정입니다, ~하시기 바랍니다.
+- 첫 단락에서 목적(무엇이, 언제부터, 누구에게 해당하는지)을 바로 밝힙니다. 변경 사항은 시행 시기(예: "즉시 시행됩니다")를 분명히 씁니다.
+- 교회 용어를 사용합니다: 감독단, 지부 회장단, 스테이크 회장단, 와드 평의회, 『일반 지침서』, 복음 자료실, 지도자 및 서기 참고 자료 등.
+- 근거가 되는 지침서·성경 참조는 본문에 (『일반 지침서』, 13.2.2.2 참조), (빌립보서 4:4 참조) 형식으로 괄호 안에 씁니다. 입력에 없는 장·절 번호나 URL은 지어내지 마십시오.
+- 단락은 짧게(2~4문장), 불필요한 수식과 반복 없이 씁니다. 날짜·시간·장소 등 핵심 정보는 <strong>으로 강조해도 좋지만 남용하지 마십시오.
+
+[추가 정보 섹션 — 내용이 많거나 질문이 예상될 때만]
+- 시행 시기, 자주 묻는 질문, 세부 절차, 일정표처럼 본문(서한/공지) 뒤에 덧붙일 상세 내용이 있으면 서명 다음에 <h2>Additional Information</h2> 로 구분하여 작성합니다.
+- 그 안에서 주제별로 <h3> 소제목을 쓰고, 질문과 답변은 질문을 <h3>(질문 형태, 예: "기존 반 회장단은 해임되고 다시 부름받아야 합니까?"), 답을 <p>로 씁니다.
+- 핵심 내용이 짧고 단순하면 이 섹션을 만들지 마십시오.
+
+[본문 HTML — 아래 태그만 사용]
+- 단락 <p>, 소제목 <h2>/<h3>, 목록 <ul><li> / <ol><li>, 강조 <strong>, 서명 <div class="signature">, 참고 <p class="note">
+- 목록 항목은 "주제어. 설명" 또는 "주제어—설명"처럼 앞부분을 <strong>으로 강조할 수 있습니다.
+- 수신·참조·발신·날짜·제목은 화면 머리말에 따로 표시되므로 본문에 반복하지 않습니다.
 
 [반환 형식 — 반드시 아래 JSON 구조로만 출력]
 {
-  "title": "공문 제목 (간결하고 명확하게)",
-  "doc_type": "알림 | 공지 | 지시 | 요청 | 기타 중 하나",
+  "title": "공문 제목",
+  "doc_type": "Letter 또는 Notice",
   "content": "<p>HTML 본문...</p>"
 }
 
 JSON 외 다른 텍스트, 마크다운, 코드 블록은 절대 포함하지 마십시오."""
+
+
+def _build_user_message(issued_date: str, recipients: str, sender: str,
+                        key_points: str, cc: str) -> str:
+    return f"""다음 정보를 바탕으로 공문을 작성하십시오.
+
+발행일: {issued_date}
+수신: {recipients}
+참조: {cc or "없음"}
+발신: {sender}
+
+핵심 내용:
+{key_points}"""
+
+
+def _provider() -> str:
+    """AI_PROVIDER 환경변수 우선. 없으면 Anthropic 키가 있을 때 anthropic, 아니면 openai."""
+    explicit = os.getenv("AI_PROVIDER", "").strip().lower()
+    if explicit in ("anthropic", "openai"):
+        return explicit
+    return "anthropic" if os.getenv("ANTHROPIC_API_KEY") else "openai"
+
+
+def _call_anthropic(user_message: str) -> str:
+    import anthropic
+
+    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    # Opus 5.5는 temperature 지정 불가 / thinking 항상 켜짐 → effort로만 조절
+    response = client.messages.create(
+        model=os.getenv("ANTHROPIC_MODEL", "claude-opus-5-5"),
+        max_tokens=16000,
+        output_config={"effort": os.getenv("ANTHROPIC_EFFORT", "medium")},
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": user_message}],
+    )
+    if response.stop_reason == "refusal":
+        raise ValueError("AI가 요청을 처리하지 않았습니다. 입력 내용을 확인해 주세요")
+    if response.stop_reason == "max_tokens":
+        raise ValueError("AI 응답이 길이 제한으로 잘렸습니다")
+    return "".join(b.text for b in response.content if b.type == "text")
+
+
+def _call_openai(user_message: str) -> str:
+    from openai import OpenAI
+
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    response = client.chat.completions.create(
+        model=os.getenv("OPENAI_MODEL", "gpt-4o"),
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_message},
+        ],
+        temperature=0.3,
+    )
+    return response.choices[0].message.content
+
+
+def _parse_json(raw: str) -> dict:
+    """코드 블록 등이 섞여도 첫 JSON 객체를 추출."""
+    raw = raw.strip()
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        match = re.search(r"\{.*\}", raw, re.DOTALL)
+        if not match:
+            raise ValueError("AI 응답에서 JSON을 찾을 수 없습니다")
+        return json.loads(match.group(0))
 
 
 def generate_document(
@@ -48,31 +121,9 @@ def generate_document(
     cc: str = "",
 ) -> dict:
     """제목·문서유형·본문을 AI가 생성. {"title", "doc_type", "content"} 반환."""
-    import json
-
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-    user_message = f"""다음 정보를 바탕으로 공문을 작성하십시오.
-
-발행일: {issued_date}
-수신: {recipients}
-참조: {cc or "없음"}
-발신: {sender}
-
-핵심 내용:
-{key_points}"""
-
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_message},
-        ],
-        temperature=0.3,
-    )
-    raw = response.choices[0].message.content.strip()
-    result = json.loads(raw)
+    user_message = _build_user_message(issued_date, recipients, sender, key_points, cc)
+    call = _call_anthropic if _provider() == "anthropic" else _call_openai
+    result = _parse_json(call(user_message))
 
     # 필수 키 검증
     for key in ("title", "doc_type", "content"):
