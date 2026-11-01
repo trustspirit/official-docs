@@ -56,6 +56,10 @@ def render_html(*, title: str, message: str, logo_url: str | None, button_url: s
  .bg-card{{background:#ffffff !important;background-image:linear-gradient(#ffffff,#ffffff) !important}}
  .t-body{{color:#34363a !important}} .t-title{{color:#1f2124 !important}} .t-band{{color:#8a8d91 !important}}
 }}
+ /* Outlook(웹·모바일·Mac)의 다크 모드 전용 선택자 — 배경은 data-ogsb, 글자색은 data-ogsc */
+[data-ogsb] .bg-outer,[data-ogsb] body{{background-color:#eef0f0 !important}}
+[data-ogsb] .bg-card{{background-color:#ffffff !important;background-image:linear-gradient(#ffffff,#ffffff) !important}}
+[data-ogsc] .t-body{{color:#34363a !important}} [data-ogsc] .t-title{{color:#1f2124 !important}} [data-ogsc] .t-band{{color:#8a8d91 !important}}
 </style><title>{e(title)}</title></head>
 <body class="bg-outer" style="margin:0;padding:0;background:#eef0f0;background-image:linear-gradient(#eef0f0,#eef0f0)">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#eef0f0" class="bg-outer" style="background:#eef0f0;background-image:linear-gradient(#eef0f0,#eef0f0)"><tr><td align="center" style="padding:24px 12px">
