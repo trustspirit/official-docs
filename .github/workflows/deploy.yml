@@ -65,6 +65,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+
+      # lockfile에 고정된 firebase-tools만 사용 (레지스트리에서 임의 버전을 받지 않도록)
+      - run: npm ci
 
       - uses: actions/setup-python@v5
         with:
@@ -87,4 +91,4 @@ jobs:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
       - name: Deploy to Firebase
-        run: npx firebase deploy --project "$FIREBASE_PROJECT" --non-interactive
+        run: npx --no-install firebase deploy --project "$FIREBASE_PROJECT" --non-interactive
