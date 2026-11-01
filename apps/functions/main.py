@@ -13,6 +13,7 @@ from auth import (
     require_admin, ADMIN_USERNAME, ADMIN_PASSWORD,
 )
 from ai import generate_document
+from sanitize import sanitize_html
 from storage_utils import MAX_IMAGE_BYTES, sniff_image_type, upload_image, load_image
 
 load_dotenv()
@@ -65,7 +66,7 @@ def _doc_to_dict(doc_id: str, data: dict) -> dict:
         "recipients": data.get("recipients", ""),
         "cc": data.get("cc", ""),
         "sender": data.get("sender", ""),
-        "content": data.get("content", ""),
+        "content": sanitize_html(data.get("content", "")),  # 기존 저장분도 출력 시 정리
         "raw_input": data.get("raw_input", ""),
         "is_published": data.get("is_published", True),
         "created_at": data.get("created_at", ""),
@@ -236,7 +237,7 @@ def create_document():
         "recipients": body["recipients"],
         "cc": body.get("cc", ""),
         "sender": body["sender"],
-        "content": body["content"],
+        "content": sanitize_html(body["content"]),
         "raw_input": body.get("raw_input", ""),
         "is_published": body.get("is_published", True),
         "created_at": now,
@@ -264,6 +265,8 @@ def update_document(doc_id: str):
     allowed = ["slug", "title", "doc_type", "issued_date", "recipients",
                "cc", "sender", "content", "raw_input", "is_published"]
     updates = {k: v for k, v in body.items() if k in allowed}
+    if "content" in updates:
+        updates["content"] = sanitize_html(updates["content"])
 
     # 슬러그 변경 시 중복 확인
     if "slug" in updates and updates["slug"] != snap.to_dict().get("slug"):

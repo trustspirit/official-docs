@@ -3,6 +3,8 @@ import os
 import json
 import re
 
+from sanitize import sanitize_html
+
 SYSTEM_PROMPT = """당신은 예수 그리스도 후기 성도 교회 본부가 전 세계 지도자들에게 보내는 공식 공문(Communication Library)의 한국어 판 작성 전문가입니다.
 입력된 정보와 핵심 내용을 바탕으로, 실제 교회 공문과 같은 문체·구성의 공문을 작성하여 JSON으로 반환합니다.
 
@@ -171,4 +173,6 @@ def generate_document(
 
     if images:
         result["content"] = embed_images(result["content"], [im["url"] for im in images])
+    # 이미지·입력 속 지시문으로 조작된 출력이 저장된 XSS가 되지 않도록 허용 태그만 남김
+    result["content"] = sanitize_html(result["content"])
     return result
