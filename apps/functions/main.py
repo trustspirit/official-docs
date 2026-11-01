@@ -9,8 +9,8 @@ from flask import Flask, jsonify, request as flask_request
 from dotenv import load_dotenv
 
 from auth import (
-    create_access_token, verify_token,
-    require_admin, ADMIN_USERNAME, ADMIN_PASSWORD,
+    AuthNotConfigured, create_access_token, check_credentials,
+    require_admin, get_admin_username,
 )
 from ai import generate_document
 from sanitize import sanitize_html
@@ -81,9 +81,14 @@ def auth_login():
     if flask_request.method == "OPTIONS":
         return _preflight()
     body = flask_request.get_json(silent=True) or {}
-    if body.get("username") != ADMIN_USERNAME or body.get("password") != ADMIN_PASSWORD:
-        return _json({"detail": "아이디 또는 비밀번호가 올바르지 않습니다"}, 401)
-    token = create_access_token({"sub": body["username"]})
+    try:
+        if not check_credentials(body.get("username"), body.get("password")):
+            return _json({"detail": "아이디 또는 비밀번호가 올바르지 않습니다"}, 401)
+        token = create_access_token({"sub": body["username"]})
+    except AuthNotConfigured as e:
+        # 서버 설정 누락 — 기본 비밀번호로 폴백하지 않고 로그인을 막는다
+        print(f"[auth] 설정 오류: {e}")
+        return _json({"detail": "서버 인증 설정이 완료되지 않았습니다. 관리자에게 문의하세요"}, 503)
     return _json({"access_token": token, "token_type": "bearer"})
 
 
@@ -94,7 +99,7 @@ def auth_me():
     is_admin, err = require_admin(flask_request)
     if not is_admin:
         return _json({"detail": err}, 401)
-    return _json({"username": ADMIN_USERNAME})
+    return _json({"username": get_admin_username()})
 
 
 @flask_app.route("/api/auth/logout", methods=["POST", "OPTIONS"])
@@ -195,7 +200,13 @@ def get_document(doc_id: str):
     snap = ref.get()
     if not snap.exists:
         return _json({"detail": "문서를 찾을 수 없습니다"}, 404)
-    return _json(_doc_to_dict(snap.id, snap.to_dict()))
+    data = snap.to_dict()
+    # 비공개 문서는 관리자만 조회 가능. 존재 여부가 드러나지 않도록 404로 응답
+    if not data.get("is_published", True):
+        is_admin, _ = require_admin(flask_request)
+        if not is_admin:
+            return _json({"detail": "문서를 찾을 수 없습니다"}, 404)
+    return _json(_doc_to_dict(snap.id, data))
 
 
 @flask_app.route("/api/documents/slug/<slug>", methods=["GET", "OPTIONS"])

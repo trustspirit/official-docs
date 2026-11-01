@@ -106,3 +106,6 @@ firebase functions:secrets:set OPENAI_API_KEY   # OpenAI 사용 시
 ```
 
 또는 `apps/functions/.env` 파일 사용 (로컬 개발용).
+
+> `ADMIN_PASSWORD`와 `SECRET_KEY`(32자 이상)는 **필수**이며 기본값이 없습니다. 설정하지 않으면 로그인이 503으로 차단됩니다.
+> `SECRET_KEY` 생성: `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`
