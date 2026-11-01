@@ -20,7 +20,21 @@ load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env.local
 if not firebase_admin._apps:
     firebase_admin.initialize_app()
 
-db = firestore.client()
+
+
+class _LazyFirestore:
+    """Firestore 클라이언트를 첫 사용 시점에 생성.
+    배포 중 함수 분석(import)은 자격 증명이 없는 환경에서도 성공해야 하므로 import 시점에는 만들지 않는다."""
+
+    _client = None
+
+    def __getattr__(self, name):
+        if _LazyFirestore._client is None:
+            _LazyFirestore._client = firestore.client()
+        return getattr(_LazyFirestore._client, name)
+
+
+db = _LazyFirestore()
 DOCS_COLLECTION = "documents"
 
 # Flask 앱 (Firebase Functions의 on_request로 래핑)
