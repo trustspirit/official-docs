@@ -123,18 +123,18 @@ export default function Create() {
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">수신 *</label>
+              <label className="form-label">To (수신) *</label>
               <input className="form-input" value={form.recipients} onChange={set('recipients')} placeholder="예: 와드 회원 전체" />
             </div>
             <div className="form-group">
-              <label className="form-label">참조 <span style={{ fontWeight: 400, color: '#999' }}>(선택)</span></label>
+              <label className="form-label">Copies (참조) <span style={{ fontWeight: 400, color: '#999' }}>(선택)</span></label>
               <input className="form-input" value={form.cc} onChange={set('cc')} placeholder="(선택)" />
             </div>
           </div>
 
           <div className="form-group">
-            <label className="form-label">발신 *</label>
-            <input className="form-input" value={form.sender} onChange={set('sender')} placeholder="예: 와드 감독단" />
+            <label className="form-label">From / 서명 (발신) *</label>
+            <textarea className="form-textarea" rows={3} value={form.sender} onChange={set('sender')} placeholder="Notice: 발신 부서 (예: 신권 가족부) / Letter: 서명 (예: 제일회장단, 줄바꿈으로 이름 추가)" />
           </div>
 
           <div className="form-group">
@@ -176,7 +176,7 @@ export default function Create() {
                     value={generated.doc_type}
                     onChange={(e) => setGenerated((g) => ({ ...g, doc_type: e.target.value }))}
                   >
-                    {['알림', '공지', '지시', '요청', '기타'].map((t) => (
+                    {['Letter', 'Notice'].map((t) => (
                       <option key={t}>{t}</option>
                     ))}
                   </select>

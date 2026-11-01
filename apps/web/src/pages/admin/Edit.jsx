@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { generateContent, getDocument, updateDocument } from '../../api'
 
-const DOC_TYPES = ['알림', '공지', '지시', '요청', '기타']
+const DOC_TYPES = ['Letter', 'Notice']
 
 export default function Edit() {
   const { id } = useParams()
@@ -120,18 +120,18 @@ export default function Edit() {
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">수신 *</label>
+              <label className="form-label">To (수신) *</label>
               <input className="form-input" value={form.recipients} onChange={set('recipients')} />
             </div>
             <div className="form-group">
-              <label className="form-label">참조 <span style={{ fontWeight: 400, color: '#999' }}>(선택)</span></label>
+              <label className="form-label">Copies (참조) <span style={{ fontWeight: 400, color: '#999' }}>(선택)</span></label>
               <input className="form-input" value={form.cc} onChange={set('cc')} />
             </div>
           </div>
 
           <div className="form-group">
-            <label className="form-label">발신 *</label>
-            <input className="form-input" value={form.sender} onChange={set('sender')} />
+            <label className="form-label">From / 서명 (발신) *</label>
+            <textarea className="form-textarea" rows={3} value={form.sender} onChange={set('sender')} />
           </div>
 
           <div className="form-group">
@@ -154,7 +154,8 @@ export default function Edit() {
             <div className="form-group">
               <label className="form-label">문서 유형</label>
               <select className="form-select" value={form.doc_type} onChange={set('doc_type')}>
-                {DOC_TYPES.map((t) => <option key={t}>{t}</option>)}
+                {/* 기존 문서의 옛 유형(알림 등)도 유지되도록 현재 값 포함 */}
+                {[...new Set([...DOC_TYPES, form.doc_type].filter(Boolean))].map((t) => <option key={t}>{t}</option>)}
               </select>
             </div>
           </div>
