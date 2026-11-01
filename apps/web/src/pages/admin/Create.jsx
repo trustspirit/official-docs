@@ -283,7 +283,7 @@ export default function Create() {
           )}
         </div>
       </main>
-      <footer className="site-footer">© 예수 그리스도 후기 성도 교회</footer>
+      <footer className="site-footer">© 지역칠십인</footer>
       {preview && <PreviewModal doc={preview} onClose={() => setPreview(null)} />}
     </div>
   )

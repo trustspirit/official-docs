@@ -38,7 +38,7 @@ export default function Login() {
     <div className="login-wrapper">
       <div className="login-card">
         <h1 className="login-title">관리자 로그인</h1>
-        <p className="login-sub">예수 그리스도 후기 성도 교회 공문 시스템</p>
+        <p className="login-sub">지역칠십인 공문 시스템</p>
 
         {error && <div className="alert alert-error">{error}</div>}
         {denied && (

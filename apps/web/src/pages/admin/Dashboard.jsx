@@ -43,7 +43,7 @@ export default function Dashboard() {
   return (
     <div className="page-wrapper">
       <header className="site-header">
-        <span className="site-header__title">공문 관리자</span>
+        <span className="site-header__title">지역칠십인 공문 관리자</span>
         <nav className="site-header__nav" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <Button variant="outline" size="sm" onClick={() => navigate("/")}>공개 목록</Button>
           <Button variant="outline" size="sm" onClick={handleLogout}>로그아웃</Button>
@@ -105,7 +105,7 @@ export default function Dashboard() {
         )}
       </main>
 
-      <footer className="site-footer">© 예수 그리스도 후기 성도 교회</footer>
+      <footer className="site-footer">© 지역칠십인</footer>
     </div>
   )
 }
