@@ -198,6 +198,8 @@ _TITLE_SUFFIXES = (
     "회장단", "회장", "보좌", "감독단", "감독", "서기", "고문", "위원장", "위원",
     "단장", "총무", "코디네이터", "지도자", "교사", "장로", "이사", "부장", "대표",
 )
+# 조직명으로 끝나는 낱말(이름으로 오해하지 않기 위함)
+_ORG_SUFFIXES = ("와드", "스테이크", "지부", "반", "회", "부", "단", "팀", "센터", "클래스")
 _SIGNATURE_SEPARATORS = re.compile(r"\s*[|/·,，]\s*")
 
 
@@ -211,6 +213,10 @@ def split_signature_line(line: str) -> list[str]:
     if len(parts) > 1:
         return parts
     tokens = line.split()
+    # '이름 직위' 순서 (예: '홍길동 감독', '와드 홍길동 감독') → 직위(조직 포함) / 이름
+    if len(tokens) >= 2 and tokens[-1].endswith(_TITLE_SUFFIXES) \
+            and not tokens[-2].endswith(_TITLE_SUFFIXES) and not tokens[-2].endswith(_ORG_SUFFIXES):
+        return [" ".join(tokens[:-2] + [tokens[-1]]), tokens[-2]]
     last = max((i for i, t in enumerate(tokens) if t.endswith(_TITLE_SUFFIXES)), default=-1)
     name_tokens = tokens[last + 1:]
     if last < 0 or not name_tokens or len(name_tokens) > 4:

@@ -4,6 +4,7 @@ import { generateContent, createDocument } from '../../api'
 import { Button, TextField, Select, Switch } from 'trust-ui-react'
 import ImageAttach from '../../components/ImageAttach'
 import GenerationOptions from '../../components/GenerationOptions'
+import { SparkleIcon } from '../../components/icons'
 import LogoStyleSelect from '../../components/LogoStyleSelect'
 import PreviewModal from '../../components/PreviewModal'
 import { loadDraft, saveDraft, clearDraft, fmtTime } from '../../hooks/draft'
@@ -221,8 +222,8 @@ export default function Create() {
 
           <ImageAttach images={images} onChange={setImages} />
 
-          <Button variant="primary" onClick={handleGenerate} loading={generating} disabled={generating}>
-            {generating ? 'AI 생성 중…' : '✦ AI로 공문 생성'}
+          <Button variant="primary" startIcon={<SparkleIcon />} onClick={handleGenerate} loading={generating} disabled={generating}>
+            {generating ? 'AI 생성 중…' : 'AI로 공문 생성'}
           </Button>
 
           {/* ── AI 생성 결과 (생성 후 표시) ── */}

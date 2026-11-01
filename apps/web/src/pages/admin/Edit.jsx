@@ -4,6 +4,7 @@ import { generateContent, getDocument, updateDocument } from '../../api'
 import { Button, TextField, Select, Switch } from 'trust-ui-react'
 import ImageAttach from '../../components/ImageAttach'
 import GenerationOptions from '../../components/GenerationOptions'
+import { RefreshIcon } from '../../components/icons'
 import LogoStyleSelect from '../../components/LogoStyleSelect'
 import PreviewModal from '../../components/PreviewModal'
 import { loadDraft, saveDraft, clearDraft, fmtTime } from '../../hooks/draft'
@@ -225,8 +226,8 @@ export default function Edit() {
 
           <ImageAttach images={images} onChange={setImages} />
 
-          <Button variant="outline" onClick={handleRegenerate} loading={generating} disabled={generating} style={{ marginBottom: '1.5rem' }}>
-            {generating ? '생성 중…' : '↺ AI로 공문 재생성'}
+          <Button variant="outline" startIcon={<RefreshIcon />} onClick={handleRegenerate} loading={generating} disabled={generating} style={{ marginBottom: '1.5rem' }}>
+            {generating ? '생성 중…' : 'AI로 공문 재생성'}
           </Button>
 
           <hr style={{ border: 'none', borderTop: '1px solid #ebe8e3', margin: '0 0 1.5rem' }} />

@@ -285,14 +285,15 @@ input, textarea, select { font-family: inherit; }
   object-fit: contain;
 }
 
+.doc-header--name { grid-template-columns: 170px 1fr; }
 .doc-logo--name {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 0.25rem; text-align: center; align-self: center;
+  gap: 0.35rem; text-align: center; align-self: center;
   font-family: "Nanum Myeongjo", "Ensign:Serif", Maruburi, Georgia, serif; color: #212225;
-  width: 92px; box-sizing: border-box; margin-right: 1.6rem; padding-right: 0;
+  width: 150px; box-sizing: border-box; margin-right: 0.8rem; padding-right: 0;
 }
-.doc-logo--name span:first-child { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.02em; }
-.doc-logo--name span:last-child { font-size: 0.78rem; letter-spacing: 0.04em; }
+.doc-logo--name span:first-child { font-size: 1.45rem; font-weight: 800; letter-spacing: 0.02em; line-height: 1.25; }
+.doc-logo--name span:last-child { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.06em; line-height: 1.25; }
 
 .doc-title-block { padding-left: 1.2rem; }
 
