@@ -286,17 +286,9 @@ input, textarea, select { font-family: inherit; }
 }
 
 .doc-header--name { grid-template-columns: 170px 1fr; }
-/* 공식 로고의 글자 비율: 윗줄은 크고 굵게, "후기 성도"는 작고 가늘게(자간 넓게), "교회"는 그보다 크고 굵게 */
-.doc-logo--name {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 0.55rem; text-align: center; align-self: center;
-  font-family: "Noto Sans KR", "Ensign:Sans", Roboto, Arial, sans-serif; color: #212225;
-  width: 150px; box-sizing: border-box; margin-right: 0.8rem; padding-right: 0;
-}
-.doc-logo__line1 { font-size: 1.5rem; font-weight: 700; line-height: 1.2; letter-spacing: 0.01em; white-space: nowrap; }
-.doc-logo__line2 { display: flex; align-items: baseline; justify-content: center; white-space: nowrap; line-height: 1.2; }
-.doc-logo__light { font-size: 0.95rem; font-weight: 400; letter-spacing: 0.32em; margin-right: 0.15em; }
-.doc-logo__line2 b { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.12em; margin-left: 0.2em; }
+/* 로고 그림 없이 공식 로고의 글자 부분만 (public/img/logo-name.webp) */
+.doc-logo--name { align-self: center; width: 150px; margin-right: 0.8rem; padding-right: 0; }
+.doc-logo--name img { display: block; width: 100%; height: auto; }
 
 .doc-title-block { padding-left: 1.2rem; }
 
