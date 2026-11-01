@@ -21,5 +21,8 @@
   "functions": {
     "source": "apps/functions",
     "runtime": "python311"
+  },
+  "storage": {
+    "rules": "storage.rules"
   }
 }

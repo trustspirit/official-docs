@@ -31,9 +31,15 @@ SYSTEM_PROMPT = """당신은 예수 그리스도 후기 성도 교회 본부가 
 - 핵심 내용이 짧고 단순하면 이 섹션을 만들지 마십시오.
 
 [본문 HTML — 아래 태그만 사용]
-- 단락 <p>, 소제목 <h2>/<h3>, 목록 <ul><li> / <ol><li>, 강조 <strong>, 서명 <div class="signature">, 참고 <p class="note">
+- 단락 <p>, 소제목 <h2>/<h3>, 목록 <ul><li> / <ol><li>, 강조 <strong>, 서명 <div class="signature">, 참고 <p class="note">, 이미지 <figure><img><figcaption>
 - 목록 항목은 "주제어. 설명" 또는 "주제어—설명"처럼 앞부분을 <strong>으로 강조할 수 있습니다.
 - 수신·참조·발신·날짜·제목은 화면 머리말에 따로 표시되므로 본문에 반복하지 않습니다.
+
+[첨부 이미지가 있는 경우]
+- 사용자 메시지에 '첨부 이미지 N장'이 안내되면, 이미지를 직접 보고 포스터·캡처·표·일정 등에 담긴 정보를 확인해 공문 내용에 정확히 반영합니다. 이미지에서 읽은 날짜·장소·명칭을 임의로 바꾸거나 지어내지 마십시오. 읽기 어려운 부분은 추측하지 말고 생략합니다.
+- 각 이미지는 본문의 알맞은 위치에 정확히 한 번씩 삽입합니다. 형식: <figure><img src="IMG_1" alt="이미지 내용 설명"><figcaption>짧은 설명(선택)</figcaption></figure>
+  src에는 반드시 IMG_1, IMG_2 … 처럼 안내된 이름만 쓰고 다른 URL은 쓰지 않습니다.
+- 이미지에 이미 들어 있는 글을 본문에서 장황하게 다시 옮기지 말고, 필요한 핵심만 정리합니다.
 
 [반환 형식 — 반드시 아래 JSON 구조로만 출력]
 {
@@ -46,7 +52,11 @@ JSON 외 다른 텍스트, 마크다운, 코드 블록은 절대 포함하지 �
 
 
 def _build_user_message(issued_date: str, recipients: str, sender: str,
-                        key_points: str, cc: str) -> str:
+                        key_points: str, cc: str, image_count: int = 0) -> str:
+    images_note = ""
+    if image_count:
+        names = ", ".join(f"IMG_{i}" for i in range(1, image_count + 1))
+        images_note = f"\n\n첨부 이미지 {image_count}장 ({names}, 순서대로 첨부됨). 이미지 내용을 확인해 공문에 반영하고 본문에 삽입하십시오."
     return f"""다음 정보를 바탕으로 공문을 작성하십시오.
 
 발행일: {issued_date}
@@ -55,7 +65,7 @@ def _build_user_message(issued_date: str, recipients: str, sender: str,
 발신: {sender}
 
 핵심 내용:
-{key_points}"""
+{key_points}{images_note}"""
 
 
 def _provider() -> str:
@@ -66,8 +76,9 @@ def _provider() -> str:
     return "anthropic" if os.getenv("ANTHROPIC_API_KEY") else "openai"
 
 
-def _call_anthropic(user_message: str) -> str:
+def _call_anthropic(user_message: str, images: list[dict]) -> str:
     import anthropic
+    import base64
 
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     # Opus 5.5는 temperature 지정 불가 / thinking 항상 켜짐 → effort로만 조절
@@ -76,7 +87,13 @@ def _call_anthropic(user_message: str) -> str:
         max_tokens=16000,
         output_config={"effort": os.getenv("ANTHROPIC_EFFORT", "medium")},
         system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_message}],
+        messages=[{"role": "user", "content": [
+            *({"type": "image", "source": {"type": "base64",
+                                           "media_type": im["media_type"],
+                                           "data": base64.b64encode(im["data"]).decode()}}
+              for im in images),
+            {"type": "text", "text": user_message},
+        ]}],
     )
     if response.stop_reason == "refusal":
         raise ValueError("AI가 요청을 처리하지 않았습니다. 입력 내용을 확인해 주세요")
@@ -85,8 +102,9 @@ def _call_anthropic(user_message: str) -> str:
     return "".join(b.text for b in response.content if b.type == "text")
 
 
-def _call_openai(user_message: str) -> str:
+def _call_openai(user_message: str, images: list[dict]) -> str:
     from openai import OpenAI
+    import base64
 
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     response = client.chat.completions.create(
@@ -94,7 +112,12 @@ def _call_openai(user_message: str) -> str:
         response_format={"type": "json_object"},
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_message},
+            {"role": "user", "content": [
+                *({"type": "image_url", "image_url": {
+                    "url": f"data:{im['media_type']};base64,{base64.b64encode(im['data']).decode()}"}}
+                  for im in images),
+                {"type": "text", "text": user_message},
+            ]},
         ],
         temperature=0.3,
     )
@@ -113,21 +136,39 @@ def _parse_json(raw: str) -> dict:
         return json.loads(match.group(0))
 
 
+def embed_images(content: str, urls: list[str]) -> str:
+    """IMG_n 자리표시자를 실제 URL로 치환하고, 본문에 쓰이지 않은 이미지는 끝에 추가."""
+    # IMG_1이 IMG_10의 앞부분과 겹치지 않도록 큰 번호부터 치환
+    used = set()
+    for i in range(len(urls), 0, -1):
+        if f'"IMG_{i}"' in content or f"'IMG_{i}'" in content:
+            used.add(i)
+            content = content.replace(f'"IMG_{i}"', f'"{urls[i - 1]}"').replace(f"'IMG_{i}'", f'"{urls[i - 1]}"')
+    for i in range(1, len(urls) + 1):
+        if i not in used:
+            content += f'<figure><img src="{urls[i - 1]}" alt=""></figure>'
+    return content
+
+
 def generate_document(
     issued_date: str,
     recipients: str,
     sender: str,
     key_points: str,
     cc: str = "",
+    images: list[dict] | None = None,
 ) -> dict:
     """제목·문서유형·본문을 AI가 생성. {"title", "doc_type", "content"} 반환."""
-    user_message = _build_user_message(issued_date, recipients, sender, key_points, cc)
+    images = images or []
+    user_message = _build_user_message(issued_date, recipients, sender, key_points, cc, len(images))
     call = _call_anthropic if _provider() == "anthropic" else _call_openai
-    result = _parse_json(call(user_message))
+    result = _parse_json(call(user_message, images))
 
     # 필수 키 검증
     for key in ("title", "doc_type", "content"):
         if key not in result:
             raise ValueError(f"AI 응답에 '{key}' 필드가 없습니다")
 
+    if images:
+        result["content"] = embed_images(result["content"], [im["url"] for im in images])
     return result

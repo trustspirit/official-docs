@@ -44,3 +44,17 @@ export const deleteDocument = (id) => api.delete(`/documents/${id}`)
 
 // AI
 export const generateContent = (data) => api.post('/generate', data)
+
+// Image upload (multipart — Content-Type은 브라우저가 boundary와 함께 설정)
+export async function uploadImage(file) {
+  const body = new FormData()
+  body.append('file', file)
+  const res = await fetch(`${BASE}/upload`, {
+    method: 'POST',
+    headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
+    body,
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`)
+  return data // { path, url, media_type }
+}

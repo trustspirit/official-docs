@@ -482,3 +482,26 @@ input, textarea, select { font-family: inherit; }
   .doc-body h2 { break-after: avoid; }
   .doc-body p  { orphans: 3; widows: 3; }
 }
+
+/* ── 본문 이미지 ─────────────────────────────────────── */
+.doc-body figure, .body-editor figure { margin: 1.4rem 0 1.6rem; text-align: center; break-inside: avoid; }
+.doc-body img, .body-editor img { max-width: 100%; height: auto; }
+.doc-body figcaption, .body-editor figcaption {
+  margin-top: 0.5rem; font-size: 0.8rem; color: #666;
+  font-family: "Noto Sans KR", "Ensign:Sans", Roboto, Arial, sans-serif;
+}
+
+/* ── 이미지 첨부(관리자) ─────────────────────────────── */
+.image-attach { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.image-attach__item { position: relative; width: 96px; height: 96px; border: 1px solid #ddd8d0; background: #faf9f6; }
+.image-attach__item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.image-attach__remove {
+  position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%;
+  border: none; background: #212225; color: #fff; font-size: 14px; line-height: 22px; padding: 0;
+}
+.image-attach__add {
+  width: 96px; height: 96px; border: 1px dashed #aaa; background: #fff; color: #555; font-size: 0.8rem;
+}
+.image-attach__add:hover:not(:disabled) { border-color: #212225; color: #212225; }
+
+.draft-status { font-size: 0.75rem; color: #6b6760; margin-right: 0.8rem; }

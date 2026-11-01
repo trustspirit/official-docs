@@ -13,6 +13,7 @@ from auth import (
     require_admin, ADMIN_USERNAME, ADMIN_PASSWORD,
 )
 from ai import generate_document
+from storage_utils import MAX_IMAGE_BYTES, sniff_image_type, upload_image, load_image
 
 load_dotenv()
 
@@ -102,6 +103,31 @@ def auth_logout():
     return _json({"message": "로그아웃되었습니다"})
 
 
+MAX_IMAGES = 6
+
+
+@flask_app.route("/api/upload", methods=["POST", "OPTIONS"])
+def upload():
+    if flask_request.method == "OPTIONS":
+        return _preflight()
+    is_admin, err = require_admin(flask_request)
+    if not is_admin:
+        return _json({"detail": err}, 401)
+    file = flask_request.files.get("file")
+    if not file:
+        return _json({"detail": "file 필드가 필요합니다"}, 400)
+    data = file.read(MAX_IMAGE_BYTES + 1)
+    if len(data) > MAX_IMAGE_BYTES:
+        return _json({"detail": "이미지는 5MB 이하만 업로드할 수 있습니다"}, 413)
+    media_type = sniff_image_type(data)
+    if not media_type:
+        return _json({"detail": "PNG, JPG, GIF, WEBP 이미지만 업로드할 수 있습니다"}, 400)
+    try:
+        return _json(upload_image(data, media_type), 201)
+    except Exception as e:
+        return _json({"detail": f"업로드 오류: {str(e)}"}, 500)
+
+
 @flask_app.route("/api/generate", methods=["POST", "OPTIONS"])
 def generate():
     if flask_request.method == "OPTIONS":
@@ -115,13 +141,18 @@ def generate():
     for field in required:
         if not body.get(field):
             return _json({"detail": f"{field} 필드가 필요합니다"}, 400)
+    image_paths = body.get("images") or []
+    if not isinstance(image_paths, list) or len(image_paths) > MAX_IMAGES:
+        return _json({"detail": f"이미지는 최대 {MAX_IMAGES}장까지 첨부할 수 있습니다"}, 400)
     try:
+        images = [load_image(str(p)) for p in image_paths]
         result = generate_document(
             issued_date=body["issued_date"],
             recipients=body["recipients"],
             sender=body["sender"],
             key_points=body["key_points"],
             cc=body.get("cc", ""),
+            images=images,
         )
         # result = {"title": ..., "doc_type": ..., "content": ...}
         return _json(result)
@@ -267,6 +298,7 @@ def delete_document(doc_id: str):
 # ── Firebase Function 진입점 ───────────────────────────────────────────────────
 
 @https_fn.on_request(
+    secrets=["ANTHROPIC_API_KEY", "ADMIN_PASSWORD", "SECRET_KEY"],
     cors=options.CorsOptions(
         cors_origins="*",
         cors_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],

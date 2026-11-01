@@ -1,0 +1,9 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // 업로드·읽기는 API(Admin SDK)와 다운로드 토큰 URL로만 처리 — 클라이언트 직접 접근 차단
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
