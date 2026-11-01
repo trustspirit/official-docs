@@ -11,11 +11,22 @@ SYSTEM_PROMPT = """당신은 예수 그리스도 후기 성도 교회 본부가 
 
 [문서 유형 — doc_type은 반드시 "Letter" 또는 "Notice" 중 하나]
 - Letter: 제일회장단 등 지도부가 보내는 서한. 정책·교리·조직 변경, 지침, 권고 등 비중 있는 내용.
-  · 본문 첫 줄을 <p>사랑하는 형제 자매 여러분,</p> 로 시작합니다.
+  · 본문 첫 줄을 수신 대상에 맞는 인사말로 시작합니다 (아래 [수신 대상과 호칭] 참조).
 - Notice: 부서·위원회가 보내는 공지. 행사 안내, 자료 공개, 일정·방법 변경, 알림 등.
   · 인사말 없이 바로 본문을 시작합니다. ('발신'은 화면에 From으로 별도 표시되므로 본문에 쓰지 않습니다.)
 - 사용자 메시지가 문서 유형을 지정하면 그 유형으로 작성하고, 지정하지 않으면 핵심 내용의 성격(지도부의 서한인지, 부서의 공지인지)과 발신 정보를 보고 판단합니다.
 - 끝인사("여러분의 진실한," 등)와 서명(발신자 이름)은 시스템이 본문 뒤에 따로 붙입니다. 본문에 끝인사나 서명을 쓰지 마십시오. 마지막 내용 단락으로 마무리합니다.
+
+[수신 대상과 호칭 — 매우 중요]
+- '수신' 항목을 읽고 누구에게 보내는 공문인지 먼저 판단하여, 인사말과 본문 호칭을 그 대상에 맞춥니다. 무조건 "형제 자매 여러분"을 쓰지 마십시오.
+  · 스테이크 회장·감독·지부 회장 등 신권 지도자 대상 → "사랑하는 신권 지도자 여러분,"
+  · 구제회·청녀·초등회 등 자매 지도자 대상 → "사랑하는 자매 지도자 여러분,"
+  · 신권·자매 지도자가 함께 대상이거나 '지도자' 일반 → "사랑하는 지도자 여러분,"
+  · 와드·지부 회원 전체 → "사랑하는 형제 자매 여러분,"
+  · 청소년 대상 → "사랑하는 청소년 여러분,", 부모 대상 → "사랑하는 부모님 여러분,", 형제만 → "사랑하는 형제 여러분,", 자매만 → "사랑하는 자매 여러분,"
+- 사용자 메시지에 '수신 대상 분석'이 있으면 그 인사말을 그대로 첫 줄에 사용합니다.
+- 지도자 대상 공문에서는 본문도 지도자에게 말하는 어조로 씁니다. 회원 전체에게 직접 말하는 표현("여러분의 가정에서…")을 쓰지 말고, 회원에게 전달할 내용은 "와드 회원들에게 안내해 주시기 바랍니다", "회원들이 …할 수 있도록 도와주시기 바랍니다"처럼 지도자가 전달·실행할 일로 씁니다. 반대로 회원 대상 공문에는 지도자 전달 어조를 쓰지 않습니다.
+- Notice처럼 인사말이 없는 경우에도 본문의 호칭과 어조는 같은 기준으로 맞춥니다.
 
 [제목]
 - 간결한 명사형 제목. 예: "청녀 연령 그룹 명칭", "교회 활동 안전 지침", "『가정과 교회를 위한 찬송가』 새로운 수록곡 모음 공개", "스테이크 및 와드 지도자를 위한 2027년 계획 안내서".
@@ -57,10 +68,79 @@ SYSTEM_PROMPT = """당신은 예수 그리스도 후기 성도 교회 본부가 
 JSON 외 다른 텍스트, 마크다운, 코드 블록은 절대 포함하지 마십시오."""
 
 
+# ── 수신 대상 판별 ─────────────────────────────────────────────────────────────
+_PRIESTHOOD_KW = ("스테이크 회장", "스테이크회장", "감독", "지부 회장", "지부회장", "정원회", "대제사", "신권",
+                  "지역 칠십인", "지역칠십인", "고등 평의원", "고등평의원")
+_WOMEN_LEADER_KW = ("구제회", "청녀", "초등회")
+_GENERIC_LEADER_KW = ("지도자", "회장단", "평의회", "서기", "보좌", "고문")
+_MEMBER_KW = ("회원", "형제 자매", "형제자매", "교회 회원")
+_GREETINGS = {
+    "priesthood_leaders": "사랑하는 신권 지도자 여러분,",
+    "women_leaders": "사랑하는 자매 지도자 여러분,",
+    "leaders": "사랑하는 지도자 여러분,",
+    "members": "사랑하는 형제 자매 여러분,",
+    "youth": "사랑하는 청소년 여러분,",
+    "youth_parents": "사랑하는 청소년과 부모님 여러분,",
+    "parents": "사랑하는 부모님 여러분,",
+    "brethren": "사랑하는 형제 여러분,",
+    "sisters": "사랑하는 자매 여러분,",
+}
+_AUDIENCE_LABEL = {
+    "priesthood_leaders": "신권 지도자(스테이크 회장·감독·지부 회장 등)",
+    "women_leaders": "자매 지도자(구제회·청녀·초등회 등)",
+    "leaders": "지도자",
+    "members": "회원 전체(형제 자매)",
+    "youth": "청소년", "youth_parents": "청소년과 부모", "parents": "부모", "brethren": "형제", "sisters": "자매",
+}
+
+
+def infer_audience(recipients: str) -> str | None:
+    """수신 문구로 대상 범주를 추정. 확신할 수 없으면 None(모델이 판단)."""
+    t = recipients or ""
+    pr = any(k in t for k in _PRIESTHOOD_KW)
+    wm = any(k in t for k in _WOMEN_LEADER_KW)
+    gl = any(k in t for k in _GENERIC_LEADER_KW)
+    mem = any(k in t for k in _MEMBER_KW)
+    if (pr or wm or gl) and not mem:
+        if pr and not wm:
+            return "priesthood_leaders"
+        if wm and not pr:
+            return "women_leaders"
+        return "leaders"
+    if mem:
+        return "members"
+    if "청소년" in t:
+        return "youth_parents" if "부모" in t else "youth"
+    if "부모" in t:
+        return "parents"
+    if "자매" in t and "형제" not in t:
+        return "sisters"
+    if "형제" in t and "자매" not in t:
+        return "brethren"
+    return None
+
+
+_GREETING_RE = re.compile(r"^\s*<p>\s*사랑하는[^<]*?,\s*</p>")
+
+
+def enforce_greeting(content: str, category: str | None) -> str:
+    """Letter의 첫 인사말을 수신 대상에 맞는 문구로 확정 (모델이 일반 인사말을 쓴 경우 교체)."""
+    if not category:
+        return content
+    greeting = f"<p>{_GREETINGS[category]}</p>"
+    if _GREETING_RE.match(content):
+        return _GREETING_RE.sub(greeting, content, count=1)
+    return greeting + content
+
+
 def _build_user_message(issued_date: str, recipients: str, sender: str,
                         key_points: str, cc: str, images: list[dict] | None = None,
                         doc_type_pref: str = "auto") -> str:
     type_note = f"문서 유형: {doc_type_pref}로 작성\n" if doc_type_pref in ("Letter", "Notice") else ""
+    aud = infer_audience(recipients)
+    if aud:
+        type_note += (f"수신 대상 분석: {_AUDIENCE_LABEL[aud]} 대상. Letter의 첫 줄 인사말은 "
+                      f"<p>{_GREETINGS[aud]}</p> 로 쓰고, 본문 호칭과 어조도 이 대상에 맞출 것\n")
     images_note = ""
     if images:
         lines = []
@@ -267,6 +347,8 @@ def generate_document(
         phrase = CLOSING_PHRASES["sincerely"] if result["doc_type"] == "Letter" else None
     else:
         phrase = CLOSING_PHRASES.get(closing)
+    if result["doc_type"] == "Letter":
+        result["content"] = enforce_greeting(result["content"], infer_audience(recipients))
     result["content"] = append_closing(result["content"], phrase, sender)
 
     titles = result.pop("attachment_titles", None)

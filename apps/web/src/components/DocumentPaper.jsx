@@ -6,6 +6,13 @@ export const formatDate = (d) => {
   return m ? `${m[1]}년 ${+m[2]}월 ${+m[3]}일` : d
 }
 
+function wrapAttachments(children) {
+  const section = document.createElement('section')
+  section.className = 'attachments'
+  children.forEach((c) => section.appendChild(c.cloneNode(true)))
+  return section
+}
+
 // 본문 HTML을 최상위 블록 단위로 나눠 "쪽 나눔 단위(행)"로 묶는다.
 // - 제목(h2/h3)은 바로 다음 블록과 함께
 // - 끝인사·서명(.signature)은 직전 문단과 함께 (서명만 다음 쪽에 혼자 남지 않도록)
@@ -26,6 +33,21 @@ function toRows(html) {
       pendingHeading = null
     } else if (isHeading) {
       pendingHeading = [node]
+    } else if (tag === 'SECTION' && node.classList.contains('attachments')) {
+      // 첨부 영역: 제목("첨부")은 첫 이미지와 같은 행으로 묶고(제목만 홀로 한 쪽을 차지하지 않도록),
+      // 이미지마다 한 행씩 나눈다. 첨부는 항상 새 쪽에서 시작.
+      const kids = Array.from(node.children)
+      const headings = kids.filter((k) => /^H[23]$/.test(k.tagName))
+      const rest = kids.filter((k) => !/^H[23]$/.test(k.tagName))
+      rest.forEach((k, idx) => {
+        const first = idx === 0
+        groups.push({
+          nodes: first ? [wrapAttachments([...headings, k])] : [k],
+          keep: true,
+          pageBreak: first,
+        })
+      })
+      if (!rest.length) groups.push({ nodes: [node], keep: false, pageBreak: true })
     } else if (node.classList.contains('signature') && groups.length) {
       const closing = groups.pop()
       const prev = groups[groups.length - 1]
@@ -36,7 +58,7 @@ function toRows(html) {
     }
   }
   if (pendingHeading) groups.push({ nodes: pendingHeading, keep: false })
-  return groups.map((g) => ({ html: g.nodes.map((n) => n.outerHTML).join(''), keep: g.keep }))
+  return groups.map((g) => ({ html: g.nodes.map((n) => n.outerHTML).join(''), keep: g.keep, pageBreak: !!g.pageBreak }))
 }
 
 // 공문 용지 — 문서 페이지와 미리보기에서 함께 사용
@@ -94,7 +116,7 @@ export default function DocumentPaper({ doc }) {
     <hr className="doc-divider" />
       </td></tr>
       {rows.map((r, i) => (
-        <tr className={`doc-sheet__row${r.keep ? ' is-keep' : ''}`} key={i}>
+        <tr className={`doc-sheet__row${r.keep ? ' is-keep' : ''}${r.pageBreak ? ' is-page-break' : ''}`} key={i}>
           <td className="doc-sheet__cell doc-body" dangerouslySetInnerHTML={{ __html: r.html }} />
         </tr>
       ))}

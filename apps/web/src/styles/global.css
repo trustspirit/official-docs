@@ -446,9 +446,11 @@ input, textarea, select { font-family: inherit; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .doc-body h2 { break-after: avoid; }
   .doc-body p  { orphans: 3; widows: 3; }
-  .doc-sheet__row.is-keep { break-inside: avoid; }
   .doc-sheet__row { break-inside: auto; }
   .doc-sheet__row.is-keep { break-inside: avoid; }
+  .doc-sheet__row.is-page-break { break-before: page; }
+  /* 이미지는 한 쪽(여백 제외)을 넘지 않도록 — 제목·캡션 포함 215mm 이내 */
+  .doc-body figure img { max-height: 205mm; width: auto; max-width: 100%; object-fit: contain; }
 }
 /* 화면·인쇄 공통 표 구조 — 실제 <table>이어야 인쇄 시 thead/tfoot 여백이 쪽마다 반복됨 (화면에서는 높이 0) */
 .doc-sheet { width: 100%; table-layout: fixed; border-collapse: collapse; border-spacing: 0; }
@@ -485,7 +487,7 @@ input, textarea, select { font-family: inherit; }
   margin-top: 3rem; padding-top: 1.5rem; border-top: 3px solid #e0e0e0;
 }
 @media print {
-  .doc-body .attachments { break-before: page; margin-top: 0; padding-top: 0; border-top: none; }
+  .doc-body .attachments { margin-top: 0; padding-top: 0; border-top: none; }
   .doc-body .attachments figure { break-inside: avoid; }
 }
 
