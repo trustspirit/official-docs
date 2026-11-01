@@ -5,12 +5,13 @@ from datetime import datetime, timezone
 import firebase_admin
 from firebase_admin import credentials, firestore
 from firebase_functions import https_fn, options
-from flask import Flask, jsonify, request as flask_request
+from flask import Flask, jsonify, redirect, request as flask_request
 from dotenv import load_dotenv
 
 from auth import require_admin, current_admin_email
 from ai import generate_document, VALID_CLOSINGS, VALID_TYPE_PREFS
 from sanitize import sanitize_html
+import shortlinks
 from storage_utils import MAX_IMAGE_BYTES, sniff_image_type, upload_image, load_image
 
 # 로컬 개발용 설정은 .env.local (firebase deploy 에 포함되지 않음). 배포 환경은 Firebase 시크릿 사용
@@ -66,6 +67,26 @@ def _json(data, status=200):
     return resp
 
 
+def _public_base() -> str:
+    """단축 링크에 쓸 사이트 주소. PUBLIC_BASE_URL 우선, 없으면 요청의 Origin/Host."""
+    explicit = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
+    if explicit:
+        return explicit
+    origin = flask_request.headers.get("Origin", "")
+    if origin.startswith(("http://", "https://")):
+        return origin.rstrip("/")
+    host = flask_request.headers.get("X-Forwarded-Host") or flask_request.host
+    scheme = "http" if host.startswith(("localhost", "127.0.0.1")) else "https"
+    return f"{scheme}://{host}"
+
+
+def _shorten(content: str) -> str:
+    try:
+        return shortlinks.shorten_links(db, content, _public_base())
+    except Exception:
+        return content  # 단축 실패해도 원본 링크로 저장/표시 (본문 생성·저장을 막지 않음)
+
+
 # ── 문서 직렬화 ────────────────────────────────────────────────────────────────
 
 VALID_LOGO_STYLES = ("full", "name")  # full: 로고 이미지 포함 / name: 교회 이름만
@@ -91,6 +112,19 @@ def _doc_to_dict(doc_id: str, data: dict) -> dict:
 
 
 # ── 라우팅 ─────────────────────────────────────────────────────────────────────
+
+@flask_app.route("/s/<code>", methods=["GET"])
+def short_redirect(code: str):
+    """단축 링크 → 원래 주소로 이동 (관리자가 저장한 주소만 존재)."""
+    url = shortlinks.resolve(db, code)
+    if not url:
+        return _json({"detail": "링크를 찾을 수 없습니다"}, 404)
+    resp = redirect(url, code=302)
+    # 코드→주소는 변하지 않으므로 Hosting CDN이 오래 캐시 (같은 링크 반복 접속 시 함수·Firestore를 호출하지 않음)
+    resp.headers["Cache-Control"] = "public, max-age=3600, s-maxage=86400"
+    resp.headers["Referrer-Policy"] = "no-referrer"
+    return resp
+
 
 @flask_app.route("/api/auth/me", methods=["GET", "OPTIONS"])
 def auth_me():
@@ -165,6 +199,7 @@ def generate():
             closing=closing,
         )
         # result = {"title": ..., "doc_type": ..., "content": ...}
+        result["content"] = _shorten(result["content"])
         return _json(result)
     except Exception as e:
         return _json({"detail": f"AI 생성 오류: {str(e)}"}, 500)
@@ -253,7 +288,7 @@ def create_document():
         "recipients": body["recipients"],
         "cc": body.get("cc", ""),
         "sender": body["sender"],
-        "content": sanitize_html(body["content"]),
+        "content": _shorten(sanitize_html(body["content"])),
         "raw_input": body.get("raw_input", ""),
         "is_published": body.get("is_published", True),
         "created_at": now,
@@ -284,7 +319,7 @@ def update_document(doc_id: str):
     if "logo_style" in updates and updates["logo_style"] not in VALID_LOGO_STYLES:
         return _json({"detail": "logo_style 값이 올바르지 않습니다"}, 400)
     if "content" in updates:
-        updates["content"] = sanitize_html(updates["content"])
+        updates["content"] = _shorten(sanitize_html(updates["content"]))
 
     # 슬러그 변경 시 중복 확인
     if "slug" in updates and updates["slug"] != snap.to_dict().get("slug"):
@@ -325,6 +360,7 @@ def delete_document(doc_id: str):
         cors_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     ),
     invoker="public",
+    max_instances=5,  # 동시 실행 상한 — 트래픽 폭주·악의적 호출 시 비용 상한
 )
 def api(req: https_fn.Request) -> https_fn.Response:
     with flask_app.request_context(req.environ):

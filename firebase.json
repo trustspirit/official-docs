@@ -13,6 +13,11 @@
         "region": "asia-northeast3"
       },
       {
+        "source": "/s/**",
+        "function": "api",
+        "region": "asia-northeast3"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
