@@ -9,7 +9,7 @@
 | Frontend | React + Vite (Firebase Hosting) |
 | Backend API | Firebase Functions Python (Flask) |
 | Database | Firestore |
-| AI | OpenAI GPT-4o |
+| AI | Anthropic Claude (기본) / OpenAI GPT-4o (`AI_PROVIDER`로 전환) |
 | Monorepo | Turborepo |
 
 ## 프로젝트 구조
@@ -28,7 +28,7 @@ church-docs/
 ## 로고 교체
 
 `apps/web/public/img/logo.webp` 파일을 교회 로고 이미지로 교체하면 됩니다.
-권장 크기: 200×200px 이상 정사각형
+현재 로고는 공문(Communication Library) PDF에서 추출한 이미지(200×395, 투명 배경)입니다. 교체 시 세로가 긴 아치형 로고(글자 포함)를 권장합니다.
 
 ## 로컬 개발
 
@@ -101,7 +101,8 @@ Firebase 콘솔 또는 CLI로 설정:
 ```bash
 firebase functions:secrets:set ADMIN_PASSWORD
 firebase functions:secrets:set SECRET_KEY
-firebase functions:secrets:set OPENAI_API_KEY
+firebase functions:secrets:set ANTHROPIC_API_KEY
+firebase functions:secrets:set OPENAI_API_KEY   # OpenAI 사용 시
 ```
 
 또는 `apps/functions/.env` 파일 사용 (로컬 개발용).
