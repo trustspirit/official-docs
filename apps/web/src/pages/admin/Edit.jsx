@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { generateContent, getDocument, updateDocument } from '../../api'
 import ImageAttach from '../../components/ImageAttach'
+import GenerationOptions from '../../components/GenerationOptions'
 import PreviewModal from '../../components/PreviewModal'
 import { loadDraft, saveDraft, clearDraft, fmtTime } from '../../hooks/draft'
 
@@ -49,7 +50,7 @@ export default function Edit() {
           setImagesState(draft.images || [])
           setRestoredAt(draft.savedAt)
           setSavedAt(draft.savedAt)
-          setForm({ ...draft.form, content: draft.body ?? draft.form.content })
+          setForm({ doc_type_pref: 'auto', closing: 'auto', ...draft.form, content: draft.body ?? draft.form.content })
           return
         }
         setForm({
@@ -58,6 +59,8 @@ export default function Edit() {
           cc: doc.cc || '',
           sender: doc.sender,
           key_points: doc.raw_input || '',
+          doc_type_pref: ['Letter', 'Notice'].includes(doc.doc_type) ? doc.doc_type : 'auto',
+          closing: 'auto',
           // AI가 생성한 필드 (수정 가능)
           title: doc.title,
           doc_type: doc.doc_type,
@@ -88,6 +91,8 @@ export default function Edit() {
         cc: form.cc,
         sender: form.sender,
         key_points: form.key_points,
+        doc_type_pref: form.doc_type_pref,
+        closing: form.closing,
         images: images.map((im) => ({ path: im.path, mode: im.mode || 'inline' })),
       })
       dirty.current = true
@@ -210,6 +215,12 @@ export default function Edit() {
             <textarea className="form-textarea" value={form.key_points} onChange={set('key_points')} rows={4} />
           </div>
 
+          <GenerationOptions
+            docTypePref={form.doc_type_pref}
+            closing={form.closing}
+            onChange={(k, v) => { dirty.current = true; setForm((f) => ({ ...f, [k]: v })) }}
+          />
+
           <ImageAttach images={images} onChange={setImages} />
 
           <button className="btn btn-secondary" onClick={handleRegenerate} disabled={generating} style={{ marginBottom: '1.5rem' }}>
@@ -225,7 +236,7 @@ export default function Edit() {
               <input className="form-input" value={form.title} onChange={set('title')} />
             </div>
             <div className="form-group">
-              <label className="form-label">문서 유형</label>
+              <label className="form-label">문서 유형 <span style={{ fontWeight: 400, color: '#999' }}>(생성 결과 · 수정 가능)</span></label>
               <select className="form-select" value={form.doc_type} onChange={set('doc_type')}>
                 {/* 기존 문서의 옛 유형(알림 등)도 유지되도록 현재 값 포함 */}
                 {[...new Set([...DOC_TYPES, form.doc_type].filter(Boolean))].map((t) => <option key={t}>{t}</option>)}

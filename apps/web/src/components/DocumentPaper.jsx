@@ -32,8 +32,8 @@ export default function DocumentPaper({ doc }) {
               <dd>{doc.cc}</dd>
             </div>
           )}
-          {/* Letter는 본문 끝 서명으로 발신자를 표시, Notice는 From 표시 */}
-          {doc.doc_type !== 'Letter' && (
+          {/* 서명이 본문에 있으면(Letter 등) From 생략, 없으면 Notice처럼 From 표시 */}
+          {doc.doc_type !== 'Letter' && !(doc.content || '').includes('class="signature"') && (
             <div className="meta-row">
               <dt>From:</dt>
               <dd>{doc.sender}</dd>

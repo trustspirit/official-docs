@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { generateContent, createDocument } from '../../api'
 import ImageAttach from '../../components/ImageAttach'
+import GenerationOptions from '../../components/GenerationOptions'
 import PreviewModal from '../../components/PreviewModal'
 import { loadDraft, saveDraft, clearDraft, fmtTime } from '../../hooks/draft'
 
@@ -18,12 +19,15 @@ export default function Create() {
   const [savedAt, setSavedAt] = useState(restored?.savedAt || null)
 
   // AI가 유추 불가능한 필드만 폼에 노출
-  const [form, setForm] = useState(restored?.form || {
+  const [form, setForm] = useState({
     issued_date: new Date().toISOString().slice(0, 10),
     recipients: '',
     cc: '',
     sender: '',
     key_points: '',
+    doc_type_pref: 'auto',
+    closing: 'auto',
+    ...restored?.form, // 이전 임시저장에 없는 항목은 기본값 유지
   })
 
   // AI가 생성한 필드 (생성 후 편집 가능)
@@ -103,6 +107,8 @@ export default function Create() {
         cc: form.cc,
         sender: form.sender,
         key_points: form.key_points,
+        doc_type_pref: form.doc_type_pref,
+        closing: form.closing,
         images: images.map((im) => ({ path: im.path, mode: im.mode || 'inline' })),
       })
       // res = { title, doc_type, content }
@@ -210,6 +216,12 @@ export default function Create() {
             />
           </div>
 
+          <GenerationOptions
+            docTypePref={form.doc_type_pref}
+            closing={form.closing}
+            onChange={(k, v) => setForm((f) => ({ ...f, [k]: v }))}
+          />
+
           <ImageAttach images={images} onChange={setImages} />
 
           <button className="btn btn-primary" onClick={handleGenerate} disabled={generating}>
@@ -234,7 +246,7 @@ export default function Create() {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">문서 유형</label>
+                  <label className="form-label">문서 유형 <span style={{ fontWeight: 400, color: '#999' }}>(생성 결과 · 수정 가능)</span></label>
                   <select
                     className="form-select"
                     value={generated.doc_type}
