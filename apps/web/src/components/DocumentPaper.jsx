@@ -13,8 +13,8 @@ export default function DocumentPaper({ doc }) {
       {doc.logo_style === 'name' ? (
         // 로고 이미지 없이 교회 이름만 표시 (로고 사용 제한이 있는 경우)
         <div className="doc-logo doc-logo--name" aria-label="예수 그리스도 후기 성도 교회">
-          <span>예수 그리스도</span>
-          <span>후기 성도 교회</span>
+          <span className="doc-logo__line1">예수 그리스도</span>
+          <span className="doc-logo__line2"><span className="doc-logo__light">후기 성도</span> <b>교회</b></span>
         </div>
       ) : (
         <div className="doc-logo">
