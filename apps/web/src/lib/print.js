@@ -48,7 +48,8 @@ export function fitSqueeze(paper) {
 export function printAsPdf(title) {
   const original = document.title
   const paper = document.querySelector('.preview-overlay .doc-paper') || document.querySelector('.doc-paper')
-  const squeeze = fitSqueeze(paper)
+  let squeeze = 0
+  try { squeeze = fitSqueeze(paper) } catch { /* 압축 계산 실패해도 인쇄는 진행 */ }
   if (paper && squeeze) paper.style.setProperty('--doc-squeeze', String(squeeze))
   const restore = () => {
     document.title = original
@@ -57,5 +58,25 @@ export function printAsPdf(title) {
   }
   window.addEventListener('afterprint', restore)
   document.title = (title || '공문').replace(/[\\/:*?"<>|]/g, ' ').trim()
-  window.print()
+
+  // 카카오톡 등 인앱 브라우저·일부 모바일 브라우저는 print()가 조용히 무시된다.
+  // beforeprint가 발생하지 않으면 지원되지 않는 것으로 보고 안내한다.
+  let started = false
+  const onBefore = () => { started = true }
+  window.addEventListener('beforeprint', onBefore, { once: true })
+  try {
+    window.print()
+  } catch {
+    started = false
+  }
+  setTimeout(() => {
+    window.removeEventListener('beforeprint', onBefore)
+    if (started) return
+    restore()
+    window.alert(
+      '이 브라우저에서는 PDF 저장(인쇄)을 지원하지 않습니다.\n' +
+      '카카오톡 등 앱 안에서 열었다면 Safari 또는 Chrome으로 이 페이지를 연 뒤,\n' +
+      '공유 → 인쇄(또는 메뉴 → 인쇄)에서 PDF로 저장해 주세요.',
+    )
+  }, 1000)
 }
