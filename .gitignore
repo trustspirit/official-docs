@@ -26,3 +26,6 @@ Thumbs.db
 # Firebase
 .firebase/
 .playwright-mcp/
+
+*-debug.log
+firebase-debug.log

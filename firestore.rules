@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 모든 읽기/쓰기는 API(Functions, Admin SDK)를 통해서만 처리 — 클라이언트 직접 접근 차단
+    // (비공개 문서가 클라이언트 SDK로 노출되지 않도록)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

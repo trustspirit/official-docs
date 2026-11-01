@@ -9,6 +9,8 @@
 | Frontend | React + Vite (Firebase Hosting) |
 | Backend API | Firebase Functions Python (Flask) |
 | Database | Firestore |
+| 이미지 저장 | Firebase Storage |
+| 인증 | Firebase Authentication (Google 로그인) + 이메일 허용 목록 |
 | AI | Anthropic Claude (기본) / OpenAI GPT-4o (`AI_PROVIDER`로 전환) |
 | Monorepo | Turborepo |
 
@@ -22,6 +24,8 @@ church-docs/
 ├── turbo.json
 ├── package.json
 ├── firebase.json
+├── firestore.rules / firestore.indexes.json
+├── storage.rules
 └── .firebaserc
 ```
 
@@ -30,82 +34,62 @@ church-docs/
 `apps/web/public/img/logo.webp` 파일을 교회 로고 이미지로 교체하면 됩니다.
 현재 로고는 공문(Communication Library) PDF에서 추출한 이미지(200×395, 투명 배경)입니다. 교체 시 세로가 긴 아치형 로고(글자 포함)를 권장합니다.
 
+## 인증 방식
+
+관리자는 Google 계정으로 로그인합니다. 프론트엔드가 Firebase Auth로 로그인해 ID 토큰을 받고, 백엔드는 토큰을 검증한 뒤 다음을 모두 만족할 때만 관리자로 인정합니다.
+
+- 로그인 제공자가 `google.com`
+- 이메일이 인증됨 (`email_verified`)
+- 이메일이 `ADMIN_EMAILS`(쉼표로 구분, 대소문자 무시)에 포함됨
+
 ## 로컬 개발
 
 ### 1. 환경변수 설정
 
 ```bash
-cp .env.example apps/functions/.env
-# .env 파일에 실제 값 입력
+cp .env.example apps/functions/.env.local     # AI 키, ADMIN_EMAILS 입력
+cp apps/web/.env.example apps/web/.env.local  # Firebase 웹 설정 입력
 ```
 
-### 2. Node 의존성 설치
+`.env.local` 파일은 gitignore 대상이며 절대 커밋하지 않습니다.
+(`apps/functions/.env`를 쓰면 `firebase deploy` 때 함께 업로드되므로 사용하지 않습니다.)
+
+### 2. 의존성 설치
 
 ```bash
 npm install
+cd apps/functions && pip install -r requirements.txt
 ```
 
-### 3. Python 의존성 설치
+### 3. 에뮬레이터로 실행
+
+`apps/web/.env.local`에 `VITE_USE_EMULATOR=true`를 두면 Auth 에뮬레이터(9099)를 사용합니다. 에뮬레이터는 가짜 Google 계정 선택 창을 띄워 줍니다.
 
 ```bash
-cd apps/functions
-pip install -r requirements.txt
+firebase emulators:start --only auth,firestore,storage --project demo-church-docs
+npm run dev  # apps/web 개발 서버 (localhost:5173, /api → localhost:5001 프록시)
 ```
 
-### 4. Firebase Emulator 실행
+## Firebase 설정 및 배포
+
+1. Firebase 프로젝트를 만들고 Blaze(종량제) 요금제에 연결합니다. (Functions v2 필수)
+2. `.firebaserc`의 프로젝트 ID를 실제 값으로 바꿉니다.
+3. 콘솔에서 Authentication → Google 제공자를 켭니다. 배포 도메인이 승인된 도메인에 있는지 확인합니다.
+4. Firestore, Storage를 생성합니다.
+5. 웹 앱을 등록하고 설정 값을 `apps/web/.env.production`에 넣습니다. (`apps/web/.env.example` 참고)
+6. 시크릿을 등록합니다.
 
 ```bash
-firebase emulators:start --only hosting,functions
-```
-
-또는 프론트엔드만 개발 시:
-
-```bash
-npm run dev  # turbo dev → apps/web 개발 서버 (localhost:5173)
-```
-
-> 개발 서버는 `/api` 요청을 `localhost:5001`로 프록시합니다.
-
-## 배포
-
-```bash
-# 1. 프론트엔드 빌드
-npm run build
-
-# 2. Firebase 배포
-firebase deploy
-```
-
-## Firestore 보안 규칙
-
-Firebase 콘솔 > Firestore > 규칙에서 아래 설정:
-
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /documents/{docId} {
-      // 공개 문서는 누구나 읽기 가능
-      allow read: if resource.data.is_published == true;
-      // 쓰기는 API(Functions)에서만 (Admin SDK 사용)
-      allow write: if false;
-    }
-  }
-}
-```
-
-## 환경변수 (Firebase Functions)
-
-Firebase 콘솔 또는 CLI로 설정:
-
-```bash
-firebase functions:secrets:set ADMIN_PASSWORD
-firebase functions:secrets:set SECRET_KEY
 firebase functions:secrets:set ANTHROPIC_API_KEY
+printf 'admin1@example.com,admin2@example.com' | firebase functions:secrets:set ADMIN_EMAILS --data-file -
 firebase functions:secrets:set OPENAI_API_KEY   # OpenAI 사용 시
 ```
 
-또는 `apps/functions/.env` 파일 사용 (로컬 개발용).
+7. 빌드 후 배포합니다.
 
-> `ADMIN_PASSWORD`와 `SECRET_KEY`(32자 이상)는 **필수**이며 기본값이 없습니다. 설정하지 않으면 로그인이 503으로 차단됩니다.
-> `SECRET_KEY` 생성: `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`
+```bash
+npm run build
+firebase deploy
+```
+
+Firestore/Storage 규칙은 모든 클라이언트 접근을 거부합니다. 모든 읽기/쓰기는 Functions(Admin SDK)를 통해서만 이루어집니다. 복합 인덱스는 `firestore.indexes.json`으로 배포됩니다.

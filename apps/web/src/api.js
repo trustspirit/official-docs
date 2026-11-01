@@ -1,22 +1,29 @@
+import { auth } from './firebase'
+
 const BASE = '/api'
 
-export const getToken = () => localStorage.getItem('admin_token')
-export const setToken = (t) => localStorage.setItem('admin_token', t)
-export const clearToken = () => localStorage.removeItem('admin_token')
-
-const authHeaders = () => ({
-  'Content-Type': 'application/json',
-  ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
-})
+// Firebase ID 토큰(1시간 유효, SDK가 자동 갱신)을 매 요청에 붙인다
+async function idToken() {
+  await auth.authStateReady()
+  return auth.currentUser ? auth.currentUser.getIdToken() : null
+}
 
 async function request(method, path, body) {
+  const token = await idToken()
   const res = await fetch(`${BASE}${path}`, {
     method,
-    headers: authHeaders(),
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   })
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`)
+  if (!res.ok) {
+    const err = new Error(data.detail || `HTTP ${res.status}`)
+    err.status = res.status
+    throw err
+  }
   return data
 }
 
@@ -27,11 +34,8 @@ export const api = {
   delete: (path)        => request('DELETE', path),
 }
 
-// Auth
-export const login = (username, password) =>
-  api.post('/auth/login', { username, password })
+// Auth (Google 로그인은 Firebase Auth, 관리자 여부는 서버가 허용 이메일로 판단)
 export const getMe = () => api.get('/auth/me')
-export const logout = () => api.post('/auth/logout')
 
 // Documents
 export const listDocuments = (admin = false) =>
@@ -49,9 +53,10 @@ export const generateContent = (data) => api.post('/generate', data)
 export async function uploadImage(file) {
   const body = new FormData()
   body.append('file', file)
+  const token = await idToken()
   const res = await fetch(`${BASE}/upload`, {
     method: 'POST',
-    headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body,
   })
   const data = await res.json().catch(() => ({}))

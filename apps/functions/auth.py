@@ -1,69 +1,23 @@
 from __future__ import annotations
-import hmac
 import os
-from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from jose import JWTError, jwt
+from firebase_admin import auth as fb_auth
 from flask import Request
-
-ALGORITHM = "HS256"
-MIN_SECRET_KEY_LENGTH = 32
 
 
 class AuthNotConfigured(RuntimeError):
-    """ADMIN_PASSWORD / SECRET_KEY 가 설정되지 않았을 때 (기본값으로 폴백하지 않음)."""
+    """ADMIN_EMAILS 가 비어 있을 때 (아무도 관리자로 인정하지 않음)."""
 
 
-# 환경변수는 import 시점이 아니라 호출 시점에 읽는다.
-# (import 시점에 읽으면 load_dotenv()·Firebase 시크릿 주입 전에 값이 고정됨)
-def get_admin_username() -> str:
-    return os.getenv("ADMIN_USERNAME", "admin")
-
-
-def _admin_password() -> str:
-    pw = os.getenv("ADMIN_PASSWORD", "")
-    if not pw:
-        raise AuthNotConfigured("ADMIN_PASSWORD 가 설정되지 않았습니다")
-    return pw
-
-
-def _secret_key() -> str:
-    key = os.getenv("SECRET_KEY", "")
-    if len(key) < MIN_SECRET_KEY_LENGTH:
-        raise AuthNotConfigured(f"SECRET_KEY 가 설정되지 않았거나 {MIN_SECRET_KEY_LENGTH}자 미만입니다")
-    return key
-
-
-def _token_ttl_minutes() -> int:
-    return int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480"))
-
-
-def _safe_eq(a: object, b: str) -> bool:
-    """타이밍 공격을 피하는 문자열 비교 (입력이 문자열이 아니면 불일치)."""
-    return isinstance(a, str) and hmac.compare_digest(a.encode(), b.encode())
-
-
-def check_credentials(username: object, password: object) -> bool:
-    """자격 증명 검증. 설정이 없으면 AuthNotConfigured."""
-    expected_pw = _admin_password()
-    user_ok = _safe_eq(username, get_admin_username())
-    pw_ok = _safe_eq(password, expected_pw)
-    return user_ok and pw_ok
-
-
-def create_access_token(data: dict) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=_token_ttl_minutes())
-    to_encode = {**data, "exp": expire}
-    return jwt.encode(to_encode, _secret_key(), algorithm=ALGORITHM)
-
-
-def verify_token(token: str) -> Optional[str]:
-    try:
-        payload = jwt.decode(token, _secret_key(), algorithms=[ALGORITHM])
-        return payload.get("sub")
-    except (JWTError, AuthNotConfigured):
-        return None
+def admin_emails() -> set[str]:
+    """관리자로 허용할 Google 계정 이메일 (쉼표·공백·줄바꿈 구분, 대소문자 무시).
+    환경변수는 import 시점이 아니라 호출 시점에 읽는다."""
+    raw = os.getenv("ADMIN_EMAILS", "")
+    emails = {e.strip().lower() for e in raw.replace(",", " ").split() if e.strip()}
+    if not emails:
+        raise AuthNotConfigured("ADMIN_EMAILS 가 설정되지 않았습니다")
+    return emails
 
 
 def get_token_from_request(req: Request) -> Optional[str]:
@@ -73,12 +27,37 @@ def get_token_from_request(req: Request) -> Optional[str]:
     return None
 
 
+def verify_admin_token(token: str) -> Optional[str]:
+    """Firebase ID 토큰을 검증하고, Google 로그인한 허용 이메일이면 그 이메일을 반환."""
+    try:
+        decoded = fb_auth.verify_id_token(token)
+    except Exception:  # 만료·위조·형식 오류 등 모두 거부
+        return None
+    email = (decoded.get("email") or "").lower()
+    provider = (decoded.get("firebase") or {}).get("sign_in_provider")
+    if provider != "google.com" or not decoded.get("email_verified") or not email:
+        return None
+    return email if email in admin_emails() else None
+
+
 def require_admin(req: Request) -> tuple[bool, str]:
     """Returns (is_admin, error_message)"""
     token = get_token_from_request(req)
     if not token:
         return False, "인증이 필요합니다"
-    username = verify_token(token)
-    if not _safe_eq(username, get_admin_username()):
-        return False, "유효하지 않은 토큰입니다"
+    try:
+        email = verify_admin_token(token)
+    except AuthNotConfigured as e:
+        print(f"[auth] 설정 오류: {e}")
+        return False, "서버 인증 설정이 완료되지 않았습니다"
+    if not email:
+        return False, "관리자 권한이 없는 계정입니다"
     return True, ""
+
+
+def current_admin_email(req: Request) -> Optional[str]:
+    token = get_token_from_request(req)
+    try:
+        return verify_admin_token(token) if token else None
+    except AuthNotConfigured:
+        return None

@@ -1,31 +1,33 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { login, getMe, setToken, getToken } from '../../api'
+import { signInWithPopup, signOut } from 'firebase/auth'
+import { auth, googleProvider } from '../../firebase'
+import { useAdmin } from '../../hooks/useAdmin'
+import GoogleSignInButton from '../../components/GoogleSignInButton'
 
 export default function Login() {
   const navigate = useNavigate()
-  const [form, setForm] = useState({ username: '', password: '' })
+  const { status, email } = useAdmin()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // 이미 관리자로 로그인되어 있으면 바로 이동
   useEffect(() => {
-    if (getToken()) {
-      getMe()
-        .then(() => navigate('/admin'))
-        .catch(() => {})
-    }
-  }, [navigate])
+    if (status === 'admin') navigate('/admin', { replace: true })
+  }, [status, navigate])
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const denied = status === 'denied'
+
+  const handleGoogle = async () => {
     setError('')
     setLoading(true)
     try {
-      const data = await login(form.username, form.password)
-      setToken(data.access_token)
-      navigate('/admin')
+      await signInWithPopup(auth, googleProvider)
+      // 관리자 여부는 useAdmin 이 서버(/api/auth/me)로 확인해 status 로 반영
     } catch (err) {
-      setError(err.message)
+      if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
+        setError('Google 로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+      }
     } finally {
       setLoading(false)
     }
@@ -38,39 +40,18 @@ export default function Login() {
         <p className="login-sub">예수 그리스도 후기 성도 교회 공문 시스템</p>
 
         {error && <div className="alert alert-error">{error}</div>}
+        {denied && (
+          <div className="alert alert-error">
+            {email} 계정은 관리자 권한이 없습니다. 허용된 Google 계정으로 다시 로그인해 주세요.
+            <div style={{ marginTop: '0.6rem' }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => signOut(auth)}>다른 계정으로 로그인</button>
+            </div>
+          </div>
+        )}
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">아이디</label>
-            <input
-              className="form-input"
-              type="text"
-              autoComplete="username"
-              value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.target.value })}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">비밀번호</label>
-            <input
-              className="form-input"
-              type="password"
-              autoComplete="current-password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            style={{ width: '100%', justifyContent: 'center' }}
-            disabled={loading}
-          >
-            {loading ? <><span className="spinner" /> 로그인 중…</> : '로그인'}
-          </button>
-        </form>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <GoogleSignInButton onClick={handleGoogle} disabled={loading || status === 'loading'} />
+        </div>
       </div>
     </div>
   )

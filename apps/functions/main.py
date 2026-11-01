@@ -8,15 +8,13 @@ from firebase_functions import https_fn, options
 from flask import Flask, jsonify, request as flask_request
 from dotenv import load_dotenv
 
-from auth import (
-    AuthNotConfigured, create_access_token, check_credentials,
-    require_admin, get_admin_username,
-)
+from auth import require_admin, current_admin_email
 from ai import generate_document, VALID_CLOSINGS, VALID_TYPE_PREFS
 from sanitize import sanitize_html
 from storage_utils import MAX_IMAGE_BYTES, sniff_image_type, upload_image, load_image
 
-load_dotenv()
+# 로컬 개발용 설정은 .env.local (firebase deploy 에 포함되지 않음). 배포 환경은 Firebase 시크릿 사용
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env.local"))
 
 # Firebase Admin 초기화
 if not firebase_admin._apps:
@@ -76,37 +74,14 @@ def _doc_to_dict(doc_id: str, data: dict) -> dict:
 
 # ── 라우팅 ─────────────────────────────────────────────────────────────────────
 
-@flask_app.route("/api/auth/login", methods=["POST", "OPTIONS"])
-def auth_login():
-    if flask_request.method == "OPTIONS":
-        return _preflight()
-    body = flask_request.get_json(silent=True) or {}
-    try:
-        if not check_credentials(body.get("username"), body.get("password")):
-            return _json({"detail": "아이디 또는 비밀번호가 올바르지 않습니다"}, 401)
-        token = create_access_token({"sub": body["username"]})
-    except AuthNotConfigured as e:
-        # 서버 설정 누락 — 기본 비밀번호로 폴백하지 않고 로그인을 막는다
-        print(f"[auth] 설정 오류: {e}")
-        return _json({"detail": "서버 인증 설정이 완료되지 않았습니다. 관리자에게 문의하세요"}, 503)
-    return _json({"access_token": token, "token_type": "bearer"})
-
-
 @flask_app.route("/api/auth/me", methods=["GET", "OPTIONS"])
 def auth_me():
     if flask_request.method == "OPTIONS":
         return _preflight()
     is_admin, err = require_admin(flask_request)
     if not is_admin:
-        return _json({"detail": err}, 401)
-    return _json({"username": get_admin_username()})
-
-
-@flask_app.route("/api/auth/logout", methods=["POST", "OPTIONS"])
-def auth_logout():
-    if flask_request.method == "OPTIONS":
-        return _preflight()
-    return _json({"message": "로그아웃되었습니다"})
+        return _json({"detail": err}, 403 if "권한" in err else 401)
+    return _json({"email": current_admin_email(flask_request)})
 
 
 MAX_IMAGES = 6
@@ -323,7 +298,7 @@ def delete_document(doc_id: str):
 # ── Firebase Function 진입점 ───────────────────────────────────────────────────
 
 @https_fn.on_request(
-    secrets=["ANTHROPIC_API_KEY", "ADMIN_PASSWORD", "SECRET_KEY"],
+    secrets=["ANTHROPIC_API_KEY", "ADMIN_EMAILS"],
     cors=options.CorsOptions(
         cors_origins="*",
         cors_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],

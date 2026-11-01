@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { listDocuments, deleteDocument, logout, clearToken } from '../../api'
+import { signOut } from 'firebase/auth'
+import { auth } from '../../firebase'
+import { listDocuments, deleteDocument } from '../../api'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -13,8 +15,8 @@ export default function Dashboard() {
     listDocuments(true)
       .then(setDocs)
       .catch((e) => {
-        if (e.message.includes('인증') || e.message.includes('401')) {
-          clearToken(); navigate('/admin/login')
+        if (e.status === 401 || e.status === 403) {
+          signOut(auth).finally(() => navigate('/admin/login'))
         } else setError(e.message)
       })
       .finally(() => setLoading(false))
@@ -33,8 +35,7 @@ export default function Dashboard() {
   }
 
   const handleLogout = async () => {
-    await logout().catch(() => {})
-    clearToken()
+    await signOut(auth)
     navigate('/admin/login')
   }
 
