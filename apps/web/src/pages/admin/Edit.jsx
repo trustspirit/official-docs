@@ -11,6 +11,29 @@ import { loadDraft, saveDraft, clearDraft, fmtTime } from '../../hooks/draft'
 
 const DOC_TYPES = ['Letter', 'Notice']
 
+// 저장된 공문 HTML에서 업로드 이미지를 복원한다 (Storage 경로는 URL에 들어 있음)
+function extractImages(html) {
+  const out = []
+  const seen = new Set()
+  const root = new DOMParser().parseFromString(html || '', 'text/html')
+  root.querySelectorAll('img').forEach((img) => {
+    const src = img.getAttribute('src') || ''
+    const m = src.match(/\/o\/([^?]+)\?/)
+    if (!m) return
+    let path
+    try { path = decodeURIComponent(m[1]) } catch { return }
+    if (!path.startsWith('uploads/') || seen.has(path)) return
+    seen.add(path)
+    out.push({
+      path,
+      url: src,
+      name: path.split('/').pop(),
+      mode: img.closest('section.attachments') ? 'attachment' : 'inline',
+    })
+  })
+  return out
+}
+
 export default function Edit() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -56,6 +79,7 @@ export default function Edit() {
           setForm({ doc_type_pref: 'auto', closing: 'auto', logo_style: 'full', ...draft.form, content: draft.body ?? draft.form.content })
           return
         }
+        setImagesState(extractImages(doc.content))
         setForm({
           issued_date: doc.issued_date,
           recipients: doc.recipients,
