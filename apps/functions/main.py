@@ -68,12 +68,16 @@ def _json(data, status=200):
 
 # ── 문서 직렬화 ────────────────────────────────────────────────────────────────
 
+VALID_LOGO_STYLES = ("full", "name")  # full: 로고 이미지 포함 / name: 교회 이름만
+
+
 def _doc_to_dict(doc_id: str, data: dict) -> dict:
     return {
         "id": doc_id,
         "slug": data.get("slug", ""),
         "title": data.get("title", ""),
         "doc_type": data.get("doc_type", "알림"),
+        "logo_style": data.get("logo_style") if data.get("logo_style") in VALID_LOGO_STYLES else "full",  # 기존 문서는 로고 포함
         "issued_date": data.get("issued_date", ""),
         "recipients": data.get("recipients", ""),
         "cc": data.get("cc", ""),
@@ -244,6 +248,7 @@ def create_document():
         "slug": body["slug"],
         "title": body["title"],
         "doc_type": body.get("doc_type", "알림"),
+        "logo_style": body.get("logo_style") if body.get("logo_style") in VALID_LOGO_STYLES else "name",
         "issued_date": body["issued_date"],
         "recipients": body["recipients"],
         "cc": body.get("cc", ""),
@@ -274,8 +279,10 @@ def update_document(doc_id: str):
 
     body = flask_request.get_json(silent=True) or {}
     allowed = ["slug", "title", "doc_type", "issued_date", "recipients",
-               "cc", "sender", "content", "raw_input", "is_published"]
+               "cc", "sender", "content", "raw_input", "is_published", "logo_style"]
     updates = {k: v for k, v in body.items() if k in allowed}
+    if "logo_style" in updates and updates["logo_style"] not in VALID_LOGO_STYLES:
+        return _json({"detail": "logo_style 값이 올바르지 않습니다"}, 400)
     if "content" in updates:
         updates["content"] = sanitize_html(updates["content"])
 

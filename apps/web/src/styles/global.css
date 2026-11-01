@@ -285,6 +285,15 @@ input, textarea, select { font-family: inherit; }
   object-fit: contain;
 }
 
+.doc-logo--name {
+  display: flex; flex-direction: column; gap: 0.2rem; padding-top: 0.5rem;
+  font-family: "Nanum Myeongjo", "Ensign:Serif", Maruburi, Georgia, serif; color: #212225;
+  border-top: 2px solid #212225; width: 92px; box-sizing: border-box;
+}
+.doc-logo--name span:first-child { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.02em; }
+.doc-logo--name span:last-child { font-size: 0.78rem; letter-spacing: 0.04em; }
+.doc-logo--name { margin-right: 1.6rem; padding-right: 0; }
+
 .doc-title-block { padding-left: 1.2rem; }
 
 .doc-title {

@@ -4,6 +4,7 @@ import { generateContent, createDocument } from '../../api'
 import { Button, TextField, Select, Switch } from 'trust-ui-react'
 import ImageAttach from '../../components/ImageAttach'
 import GenerationOptions from '../../components/GenerationOptions'
+import LogoStyleSelect from '../../components/LogoStyleSelect'
 import PreviewModal from '../../components/PreviewModal'
 import { loadDraft, saveDraft, clearDraft, fmtTime } from '../../hooks/draft'
 
@@ -28,6 +29,7 @@ export default function Create() {
     key_points: '',
     doc_type_pref: 'auto',
     closing: 'auto',
+    logo_style: 'name',
     ...restored?.form, // 이전 임시저장에 없는 항목은 기본값 유지
   })
 
@@ -75,6 +77,7 @@ export default function Create() {
     setPreview({
       title: generated.title,
       doc_type: generated.doc_type,
+      logo_style: form.logo_style,
       issued_date: form.issued_date,
       recipients: form.recipients,
       cc: form.cc,
@@ -138,6 +141,7 @@ export default function Create() {
         slug,
         title: generated.title,
         doc_type: generated.doc_type,
+        logo_style: form.logo_style,
         issued_date: form.issued_date,
         recipients: form.recipients,
         cc: form.cc,
@@ -185,7 +189,7 @@ export default function Create() {
               <TextField label="발행일 *" fullWidth type="date" value={form.issued_date} onChange={set('issued_date')} />
             </div>
             <div className="form-group">
-              {/* 빈 칸 — 레이아웃 균형 */}
+              <LogoStyleSelect value={form.logo_style} onChange={(v) => setForm((f) => ({ ...f, logo_style: v }))} />
             </div>
           </div>
 

@@ -4,6 +4,7 @@ import { generateContent, getDocument, updateDocument } from '../../api'
 import { Button, TextField, Select, Switch } from 'trust-ui-react'
 import ImageAttach from '../../components/ImageAttach'
 import GenerationOptions from '../../components/GenerationOptions'
+import LogoStyleSelect from '../../components/LogoStyleSelect'
 import PreviewModal from '../../components/PreviewModal'
 import { loadDraft, saveDraft, clearDraft, fmtTime } from '../../hooks/draft'
 
@@ -51,7 +52,7 @@ export default function Edit() {
           setImagesState(draft.images || [])
           setRestoredAt(draft.savedAt)
           setSavedAt(draft.savedAt)
-          setForm({ doc_type_pref: 'auto', closing: 'auto', ...draft.form, content: draft.body ?? draft.form.content })
+          setForm({ doc_type_pref: 'auto', closing: 'auto', logo_style: 'full', ...draft.form, content: draft.body ?? draft.form.content })
           return
         }
         setForm({
@@ -62,6 +63,7 @@ export default function Edit() {
           key_points: doc.raw_input || '',
           doc_type_pref: ['Letter', 'Notice'].includes(doc.doc_type) ? doc.doc_type : 'auto',
           closing: 'auto',
+          logo_style: doc.logo_style || 'full',
           // AI가 생성한 필드 (수정 가능)
           title: doc.title,
           doc_type: doc.doc_type,
@@ -110,6 +112,7 @@ export default function Edit() {
     setPreview({
       title: form.title,
       doc_type: form.doc_type,
+      logo_style: form.logo_style,
       issued_date: form.issued_date,
       recipients: form.recipients,
       cc: form.cc,
@@ -141,6 +144,7 @@ export default function Edit() {
         slug: form.slug,
         title: form.title,
         doc_type: form.doc_type,
+        logo_style: form.logo_style,
         issued_date: form.issued_date,
         recipients: form.recipients,
         cc: form.cc,
@@ -191,7 +195,9 @@ export default function Edit() {
             <div className="form-group">
               <TextField label="발행일 *" fullWidth type="date" value={form.issued_date} onChange={set('issued_date')} />
             </div>
-            <div className="form-group" />
+            <div className="form-group">
+              <LogoStyleSelect value={form.logo_style} onChange={(v) => { dirty.current = true; setForm((f) => ({ ...f, logo_style: v })) }} />
+            </div>
           </div>
 
           <div className="form-row">

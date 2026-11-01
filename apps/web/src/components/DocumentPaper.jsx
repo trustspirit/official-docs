@@ -10,9 +10,17 @@ export default function DocumentPaper({ doc }) {
   <div className="doc-paper">
     {/* 공문 헤더 */}
     <div className="doc-header">
-      <div className="doc-logo">
-        <img src="/img/logo.webp" alt="교회 로고" />
-      </div>
+      {doc.logo_style === 'name' ? (
+        // 로고 이미지 없이 교회 이름만 표시 (로고 사용 제한이 있는 경우)
+        <div className="doc-logo doc-logo--name" aria-label="예수 그리스도 후기 성도 교회">
+          <span>예수 그리스도</span>
+          <span>후기 성도 교회</span>
+        </div>
+      ) : (
+        <div className="doc-logo">
+          <img src="/img/logo.webp" alt="교회 로고" />
+        </div>
+      )}
 
       <div className="doc-title-block">
         <h1 className="doc-title">{doc.title}</h1>
