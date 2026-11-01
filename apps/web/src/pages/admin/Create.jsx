@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { generateContent, createDocument } from '../../api'
 import ImageAttach from '../../components/ImageAttach'
+import PreviewModal from '../../components/PreviewModal'
 import { loadDraft, saveDraft, clearDraft, fmtTime } from '../../hooks/draft'
 
 const DRAFT_KEY = 'draft:create'
@@ -39,6 +40,7 @@ export default function Create() {
   const [error, setError] = useState('')
   const [hasGenerated, setHasGenerated] = useState(!!restored?.hasGenerated)
   // 편집 영역은 생성 후에야 마운트되므로, 생성된 본문은 state로 보관했다가 마운트 뒤에 주입
+  const [preview, setPreview] = useState(null)
   const [generatedBody, setGeneratedBody] = useState(restored?.body ? { html: restored.body } : null)
 
   useEffect(() => {
@@ -63,6 +65,18 @@ export default function Create() {
 
   useEffect(() => { scheduleSave() }, [form, generated, images, slug, isPublished, hasGenerated, generatedBody, scheduleSave])
   useEffect(() => () => clearTimeout(timer.current), [])
+
+  const openPreview = () => {
+    setPreview({
+      title: generated.title,
+      doc_type: generated.doc_type,
+      issued_date: form.issued_date,
+      recipients: form.recipients,
+      cc: form.cc,
+      sender: form.sender,
+      content: editorRef.current ? editorRef.current.innerHTML : '',
+    })
+  }
 
   const discardDraft = () => {
     if (!window.confirm('작성 중인 내용이 모두 삭제됩니다. 취소하시겠습니까?')) return
@@ -264,6 +278,7 @@ export default function Create() {
               </div>
 
               <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={openPreview}>미리보기</button>
                 <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
                   {saving ? <><span className="spinner" /> 저장 중…</> : '저장하기'}
                 </button>
@@ -274,6 +289,7 @@ export default function Create() {
         </div>
       </main>
       <footer className="site-footer">© 예수 그리스도 후기 성도 교회</footer>
+      {preview && <PreviewModal doc={preview} onClose={() => setPreview(null)} />}
     </div>
   )
 }

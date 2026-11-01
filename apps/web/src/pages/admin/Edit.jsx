@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { generateContent, getDocument, updateDocument } from '../../api'
 import ImageAttach from '../../components/ImageAttach'
+import PreviewModal from '../../components/PreviewModal'
 import { loadDraft, saveDraft, clearDraft, fmtTime } from '../../hooks/draft'
 
 const DOC_TYPES = ['Letter', 'Notice']
@@ -14,6 +15,7 @@ export default function Edit() {
 
   const [form, setForm] = useState(null)
   const [images, setImagesState] = useState([])
+  const [preview, setPreview] = useState(null)
   const [restoredAt, setRestoredAt] = useState(null)
   const [savedAt, setSavedAt] = useState(null)
   const dirty = useRef(false) // 사용자가 수정한 뒤에만 임시저장
@@ -96,6 +98,18 @@ export default function Edit() {
     } finally {
       setGenerating(false)
     }
+  }
+
+  const openPreview = () => {
+    setPreview({
+      title: form.title,
+      doc_type: form.doc_type,
+      issued_date: form.issued_date,
+      recipients: form.recipients,
+      cc: form.cc,
+      sender: form.sender,
+      content: editorRef.current ? editorRef.current.innerHTML : form.content,
+    })
   }
 
   const discardDraft = () => {
@@ -254,6 +268,7 @@ export default function Edit() {
           </div>
 
           <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button type="button" className="btn btn-secondary" onClick={openPreview}>미리보기</button>
             <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
               {saving ? <><span className="spinner" /> 저장 중…</> : '저장하기'}
             </button>
@@ -262,6 +277,7 @@ export default function Edit() {
         </div>
       </main>
       <footer className="site-footer">© 예수 그리스도 후기 성도 교회</footer>
+      {preview && <PreviewModal doc={preview} onClose={() => setPreview(null)} />}
     </div>
   )
 }

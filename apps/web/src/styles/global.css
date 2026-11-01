@@ -464,9 +464,27 @@ input, textarea, select { font-family: inherit; }
   border-radius: 3px;
 }
 
+/* ── 미리보기 모달 ───────────────────────────────────── */
+.preview-overlay {
+  position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column;
+  background: #e9e6df;
+}
+.preview-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.6rem 1.2rem; background: #212225; color: #fff; flex-shrink: 0;
+}
+.preview-bar__title { font-size: 0.9rem; font-weight: 700; }
+.preview-bar__actions { display: flex; gap: 0.5rem; }
+.preview-scroll { flex: 1; overflow-y: auto; padding: 1rem 0 2rem; }
+
 /* ── Print ───────────────────────────────────────────── */
 @media print {
   .no-print { display: none !important; }
+  /* 미리보기에서 인쇄할 때는 앱 화면을 숨기고 용지만 출력 */
+  body.previewing #root { display: none !important; }
+  body.previewing { overflow: visible !important; }
+  .preview-overlay { position: static; display: block; background: #fff; }
+  .preview-scroll { overflow: visible; padding: 0; }
   body { background: #fff; }
   .doc-page-wrapper { padding: 0; max-width: 100%; }
   .doc-paper {
