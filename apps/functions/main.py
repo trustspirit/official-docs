@@ -146,7 +146,12 @@ def generate():
     if not isinstance(image_paths, list) or len(image_paths) > MAX_IMAGES:
         return _json({"detail": f"이미지는 최대 {MAX_IMAGES}장까지 첨부할 수 있습니다"}, 400)
     try:
-        images = [load_image(str(p)) for p in image_paths]
+        images = []
+        for item in image_paths:
+            path, mode = (item.get("path"), item.get("mode")) if isinstance(item, dict) else (item, None)
+            im = load_image(str(path))
+            im["mode"] = "attachment" if mode == "attachment" else "inline"
+            images.append(im)
         result = generate_document(
             issued_date=body["issued_date"],
             recipients=body["recipients"],

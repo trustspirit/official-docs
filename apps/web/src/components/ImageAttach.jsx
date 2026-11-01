@@ -43,7 +43,7 @@ export default function ImageAttach({ images, onChange }) {
     try {
       for (const f of files) {
         const up = await uploadImage(f)
-        added.push({ path: up.path, url: up.url, name: f.name })
+        added.push({ path: up.path, url: up.url, name: f.name, mode: 'inline' })
       }
     } catch (err) {
       setError(err.message)
@@ -75,6 +75,9 @@ export default function ImageAttach({ images, onChange }) {
     processFiles(Array.from(e.dataTransfer.files || []))
   }
 
+  const setMode = (path, mode) =>
+    onChange(images.map((im) => (im.path === path ? { ...im, mode } : im)))
+
   const remove = (path) => onChange(images.filter((im) => im.path !== path))
 
   return (
@@ -89,12 +92,21 @@ export default function ImageAttach({ images, onChange }) {
         onDragLeave={onDragLeave}
         onDrop={onDrop}
       >
-        {images.map((im) => (
-          <div className="image-attach__item" key={im.path}>
-            <img src={im.url} alt={im.name} />
-            <button type="button" className="image-attach__remove" onClick={() => remove(im.path)} aria-label={`${im.name} 제거`}>×</button>
-          </div>
-        ))}
+        {images.map((im) => {
+          const mode = im.mode || 'inline'
+          return (
+            <div className="image-attach__card" key={im.path}>
+              <div className="image-attach__item">
+                <img src={im.url} alt={im.name} />
+                <button type="button" className="image-attach__remove" onClick={() => remove(im.path)} aria-label={`${im.name} 제거`}>×</button>
+              </div>
+              <div className="image-attach__mode" role="group" aria-label={`${im.name} 사용 방식`}>
+                <button type="button" className={mode === 'inline' ? 'is-on' : ''} onClick={() => setMode(im.path, 'inline')} title="공문 본문 중간에 이미지를 넣습니다">본문</button>
+                <button type="button" className={mode === 'attachment' ? 'is-on' : ''} onClick={() => setMode(im.path, 'attachment')} title="공문 뒤에 첨부 페이지로 붙입니다">첨부</button>
+              </div>
+            </div>
+          )
+        })}
         {images.length < MAX_IMAGES && (
           <button type="button" className="image-attach__add" onClick={() => inputRef.current?.click()} disabled={uploading}>
             {uploading ? <span className="spinner" /> : <>+ 이미지 추가<br /><span style={{ fontSize: '0.68rem', color: '#999' }}>또는 끌어다 놓기</span></>}
@@ -102,7 +114,7 @@ export default function ImageAttach({ images, onChange }) {
         )}
         <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden onChange={handleFiles} />
       </div>
-      <p className="form-hint">이미지를 이 영역으로 끌어다 놓거나 버튼으로 선택하세요. 포스터·캡처 등을 올리면 AI가 내용을 읽어 공문에 반영하고, 본문의 알맞은 위치에 함께 넣습니다.</p>
+      <p className="form-hint">이미지를 이 영역으로 끌어다 놓거나 버튼으로 선택하세요. 어느 쪽이든 AI가 이미지 내용을 읽어 공문에 반영합니다. 「본문」은 공문 중간에 넣고, 「첨부」는 공문 뒤에 별도 첨부 페이지로 붙입니다. 방식을 바꾼 뒤에는 다시 생성해야 반영됩니다.</p>
       {error && <p className="form-hint" style={{ color: '#8b0000' }}>{error}</p>}
     </div>
   )

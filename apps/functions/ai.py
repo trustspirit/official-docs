@@ -38,9 +38,11 @@ SYSTEM_PROMPT = """당신은 예수 그리스도 후기 성도 교회 본부가 
 - 수신·참조·발신·날짜·제목은 화면 머리말에 따로 표시되므로 본문에 반복하지 않습니다.
 
 [첨부 이미지가 있는 경우]
-- 사용자 메시지에 '첨부 이미지 N장'이 안내되면, 이미지를 직접 보고 포스터·캡처·표·일정 등에 담긴 정보를 확인해 공문 내용에 정확히 반영합니다. 이미지에서 읽은 날짜·장소·명칭을 임의로 바꾸거나 지어내지 마십시오. 읽기 어려운 부분은 추측하지 말고 생략합니다.
-- 각 이미지는 본문의 알맞은 위치에 정확히 한 번씩 삽입합니다. 형식: <figure><img src="IMG_1" alt="이미지 내용 설명"><figcaption>짧은 설명(선택)</figcaption></figure>
-  src에는 반드시 IMG_1, IMG_2 … 처럼 안내된 이름만 쓰고 다른 URL은 쓰지 않습니다.
+- 사용자 메시지에 이미지 목록(IMG_1, IMG_2 …)이 안내됩니다. 모든 이미지는 직접 보고 포스터·캡처·표·일정 등에 담긴 정보를 확인해 공문 내용에 정확히 반영합니다. 이미지에서 읽은 날짜·장소·명칭을 임의로 바꾸거나 지어내지 마십시오. 읽기 어려운 부분은 추측하지 말고 생략합니다.
+- 이미지마다 처리 방식이 지정됩니다.
+  · [본문 삽입]: 본문의 알맞은 위치에 정확히 한 번씩 삽입합니다. 형식: <figure><img src="IMG_1" alt="이미지 내용 설명"><figcaption>짧은 설명(선택)</figcaption></figure>
+    src에는 반드시 안내된 이름(IMG_1, IMG_2 …)만 쓰고 다른 URL은 쓰지 않습니다.
+  · [첨부]: 공문 뒤에 별도 첨부 페이지로 붙으므로 본문에는 <img>나 <figure>로 넣지 마십시오. 대신 이미지의 맥락을 참고해 본문을 작성하고, 필요하면 "자세한 내용은 첨부 자료를 참조하시기 바랍니다."처럼 첨부를 언급할 수 있습니다.
 - 이미지에 이미 들어 있는 글을 본문에서 장황하게 다시 옮기지 말고, 필요한 핵심만 정리합니다.
 
 [반환 형식 — 반드시 아래 JSON 구조로만 출력]
@@ -54,11 +56,15 @@ JSON 외 다른 텍스트, 마크다운, 코드 블록은 절대 포함하지 �
 
 
 def _build_user_message(issued_date: str, recipients: str, sender: str,
-                        key_points: str, cc: str, image_count: int = 0) -> str:
+                        key_points: str, cc: str, images: list[dict] | None = None) -> str:
     images_note = ""
-    if image_count:
-        names = ", ".join(f"IMG_{i}" for i in range(1, image_count + 1))
-        images_note = f"\n\n첨부 이미지 {image_count}장 ({names}, 순서대로 첨부됨). 이미지 내용을 확인해 공문에 반영하고 본문에 삽입하십시오."
+    if images:
+        lines = []
+        for i, im in enumerate(images, 1):
+            how = "첨부 — 공문 뒤에 별도 첨부 페이지로 붙음, 본문에 삽입하지 말 것" if im.get("mode") == "attachment" \
+                else "본문 삽입 — 본문의 알맞은 위치에 넣을 것"
+            lines.append(f"- IMG_{i}: [{how}]")
+        images_note = f"\n\n첨부된 이미지 {len(images)}장 (순서대로 첨부됨). 모든 이미지의 내용을 확인해 공문에 반영하십시오.\n" + "\n".join(lines)
     return f"""다음 정보를 바탕으로 공문을 작성하십시오.
 
 발행일: {issued_date}
@@ -138,17 +144,32 @@ def _parse_json(raw: str) -> dict:
         return json.loads(match.group(0))
 
 
-def embed_images(content: str, urls: list[str]) -> str:
-    """IMG_n 자리표시자를 실제 URL로 치환하고, 본문에 쓰이지 않은 이미지는 끝에 추가."""
-    # IMG_1이 IMG_10의 앞부분과 겹치지 않도록 큰 번호부터 치환
+def embed_images(content: str, images: list[dict]) -> str:
+    """본문삽입 이미지는 IMG_n을 URL로 치환(안 쓰인 것은 본문 끝에 추가),
+    첨부 이미지는 본문에서 제거하고 공문 뒤 '첨부' 섹션으로 붙인다."""
+    # IMG_1이 IMG_10의 앞부분과 겹치지 않도록 큰 번호부터 처리
     used = set()
-    for i in range(len(urls), 0, -1):
-        if f'"IMG_{i}"' in content or f"'IMG_{i}'" in content:
+    for i in range(len(images), 0, -1):
+        url = images[i - 1]["url"]
+        token = f"IMG_{i}"
+        if images[i - 1].get("mode") == "attachment":
+            # 모델이 지시를 어기고 본문에 넣었다면 해당 figure/img를 제거 (첨부 섹션에서 한 번만 표시)
+            content = re.sub(rf'<figure[^>]*>(?:(?!</figure>).)*?["\']{token}["\'](?:(?!</figure>).)*?</figure>', "", content, flags=re.S)
+            content = re.sub(rf'<img[^>]*["\']{token}["\'][^>]*>', "", content)
+            continue
+        if f'"{token}"' in content or f"'{token}'" in content:
             used.add(i)
-            content = content.replace(f'"IMG_{i}"', f'"{urls[i - 1]}"').replace(f"'IMG_{i}'", f'"{urls[i - 1]}"')
-    for i in range(1, len(urls) + 1):
-        if i not in used:
-            content += f'<figure><img src="{urls[i - 1]}" alt=""></figure>'
+            content = content.replace(f'"{token}"', f'"{url}"').replace(f"'{token}'", f'"{url}"')
+    for i, im in enumerate(images, 1):
+        if im.get("mode") != "attachment" and i not in used:
+            content += f'<figure><img src="{im["url"]}" alt=""></figure>'
+    attachments = [im for im in images if im.get("mode") == "attachment"]
+    if attachments:
+        figs = "".join(
+            f'<figure><img src="{im["url"]}" alt="첨부 {n}"><figcaption>첨부 {n}</figcaption></figure>'
+            for n, im in enumerate(attachments, 1)
+        )
+        content += f'<section class="attachments"><h2>첨부</h2>{figs}</section>'
     return content
 
 
@@ -162,7 +183,7 @@ def generate_document(
 ) -> dict:
     """제목·문서유형·본문을 AI가 생성. {"title", "doc_type", "content"} 반환."""
     images = images or []
-    user_message = _build_user_message(issued_date, recipients, sender, key_points, cc, len(images))
+    user_message = _build_user_message(issued_date, recipients, sender, key_points, cc, images)
     call = _call_anthropic if _provider() == "anthropic" else _call_openai
     result = _parse_json(call(user_message, images))
 
@@ -172,7 +193,7 @@ def generate_document(
             raise ValueError(f"AI 응답에 '{key}' 필드가 없습니다")
 
     if images:
-        result["content"] = embed_images(result["content"], [im["url"] for im in images])
+        result["content"] = embed_images(result["content"], images)
     # 이미지·입력 속 지시문으로 조작된 출력이 저장된 XSS가 되지 않도록 허용 태그만 남김
     result["content"] = sanitize_html(result["content"])
     return result

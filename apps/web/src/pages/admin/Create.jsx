@@ -103,7 +103,7 @@ export default function Create() {
         cc: form.cc,
         sender: form.sender,
         key_points: form.key_points,
-        images: images.map((im) => im.path),
+        images: images.map((im) => ({ path: im.path, mode: im.mode || 'inline' })),
       })
       // res = { title, doc_type, content }
       setGenerated({ title: res.title, doc_type: res.doc_type })

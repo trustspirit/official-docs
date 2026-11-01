@@ -515,6 +515,13 @@ input, textarea, select { font-family: inherit; }
   border: 1px dashed transparent; transition: background 0.1s, border-color 0.1s;
 }
 .image-attach--drag { background: #f4efe6; border-color: #212225; }
+.image-attach__card { display: flex; flex-direction: column; gap: 0.35rem; }
+.image-attach__mode { display: flex; border: 1px solid #ddd8d0; width: 96px; }
+.image-attach__mode button {
+  flex: 1; padding: 0.2rem 0; font-size: 0.72rem; border: none; background: #fff; color: #555;
+}
+.image-attach__mode button + button { border-left: 1px solid #ddd8d0; }
+.image-attach__mode button.is-on { background: #212225; color: #fff; }
 .image-attach__item { position: relative; width: 96px; height: 96px; border: 1px solid #ddd8d0; background: #faf9f6; }
 .image-attach__item img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .image-attach__remove {
@@ -527,3 +534,12 @@ input, textarea, select { font-family: inherit; }
 .image-attach__add:hover:not(:disabled) { border-color: #212225; color: #212225; }
 
 .draft-status { font-size: 0.75rem; color: #6b6760; margin-right: 0.8rem; }
+
+/* ── 첨부 페이지 (공문 뒤에 이미지 첨부) ─────────────── */
+.doc-body .attachments, .body-editor .attachments {
+  margin-top: 3rem; padding-top: 1.5rem; border-top: 3px solid #e0e0e0;
+}
+@media print {
+  .doc-body .attachments { break-before: page; margin-top: 0; padding-top: 0; border-top: none; }
+  .doc-body .attachments figure { break-inside: avoid; }
+}

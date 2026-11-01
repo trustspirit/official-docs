@@ -88,7 +88,7 @@ export default function Edit() {
         cc: form.cc,
         sender: form.sender,
         key_points: form.key_points,
-        images: images.map((im) => im.path),
+        images: images.map((im) => ({ path: im.path, mode: im.mode || 'inline' })),
       })
       dirty.current = true
       setForm((f) => ({ ...f, title: res.title, doc_type: res.doc_type }))
