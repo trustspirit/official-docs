@@ -265,7 +265,7 @@ input, textarea, select { font-family: inherit; }
 .doc-paper {
   background: #fff;
   border: 1px solid #ddd8d0;
-  padding: 56px 64px 72px;
+  padding: 56px 64px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
@@ -318,12 +318,12 @@ input, textarea, select { font-family: inherit; }
 .doc-divider {
   border: none;
   border-top: 3px solid #e0e0e0;
-  margin: 1.6rem 0 2.2rem;
+  margin: calc(1.6rem * (1 - 0.4 * var(--doc-squeeze, 0))) 0 calc(2.2rem * (1 - 0.4 * var(--doc-squeeze, 0)));
 }
 
 .doc-body {
   font-size: 0.95rem;
-  line-height: 1.95;
+  line-height: calc(1.95 - 0.4 * var(--doc-squeeze, 0));
   color: #212225;
   font-family: "Nanum Myeongjo", "Ensign:Serif", Maruburi, Georgia, serif;
   word-break: keep-all;
@@ -333,24 +333,26 @@ input, textarea, select { font-family: inherit; }
   font-weight: 700;
   color: #000;
   font-family: "Noto Sans KR", "Ensign:Sans", Roboto, Arial, sans-serif;
-  margin: 2.4rem 0 1rem;
+  margin: calc(2.4rem * (1 - 0.5 * var(--doc-squeeze, 0))) 0 calc(1rem * (1 - 0.5 * var(--doc-squeeze, 0)));
 }
 .doc-body h3 {
   font-size: 1.05rem;
   font-weight: 700;
   color: #000;
   font-family: "Noto Sans KR", "Ensign:Sans", Roboto, Arial, sans-serif;
-  margin: 1.6rem 0 0.6rem;
+  margin: calc(1.6rem * (1 - 0.5 * var(--doc-squeeze, 0))) 0 calc(0.6rem * (1 - 0.5 * var(--doc-squeeze, 0)));
 }
-.doc-body p { margin-bottom: 1rem; }
-.doc-body ul, .doc-body ol { margin: 0.5rem 0 1rem 1.6rem; }
-.doc-body li { margin-bottom: 0.55rem; }
+.doc-body p { margin-bottom: calc(1rem * (1 - 0.5 * var(--doc-squeeze, 0))); }
+.doc-body ul, .doc-body ol { margin: 0.5rem 0 calc(1rem * (1 - 0.5 * var(--doc-squeeze, 0))) 1.6rem; }
+.doc-body li { margin-bottom: calc(0.55rem * (1 - 0.5 * var(--doc-squeeze, 0))); }
 .doc-body strong { font-weight: 700; }
 .doc-body .note { color: #666; font-size: 0.85rem; }
 .doc-body a { color: #157493; text-decoration: underline; word-break: break-all; }
 /* 서명: 끝인사 아래 발신자 이름 목록 */
 .doc-body .signature { margin-top: 1rem; }
 .doc-body .signature p { margin-bottom: 0; }
+/* 본문 끝의 여백 제거 — 용지 상·하 여백이 동일하게 보이도록 */
+.doc-body > :last-child { margin-bottom: 0; }
 
 .doc-footer-divider { display: none; }
 
