@@ -1,3 +1,5 @@
+import { isMobileDevice } from './mobilePdf.js'
+
 // A4 인쇄 영역 (styles/global.css 의 인쇄 규칙과 일치해야 함): @page 여백 0,
 // 좌우는 .doc-paper 패딩 18mm, 상·하는 쪽마다 16mm 여백 행
 const MM = 96 / 25.4
@@ -44,10 +46,35 @@ export function fitSqueeze(paper) {
   return level ?? 0
 }
 
+function showBusy() {
+  const el = document.createElement('div')
+  el.className = 'pdf-result no-print'
+  el.innerHTML = '<div class="pdf-result__card"><p class="pdf-result__title"><span class="spinner"></span> PDF 만드는 중…</p></div>'
+  document.body.appendChild(el)
+  return () => el.remove()
+}
+
+// 모바일: 인쇄 창 대신 PDF 파일을 직접 만들어 미리보기·저장
+async function savePdfOnMobile(title, paper) {
+  const hide = showBusy()
+  try {
+    const { buildPdfBlob, showPdfResult } = await import('./mobilePdf.js')
+    const name = `${(title || '공문').replace(/[\\/:*?"<>|]/g, ' ').trim()}.pdf`
+    const blob = await buildPdfBlob(paper)
+    hide()
+    showPdfResult(blob, name)
+  } catch (e) {
+    hide()
+    console.error(e)
+    window.alert('PDF를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
+  }
+}
+
 // 브라우저 인쇄 창에서 "PDF로 저장"을 고르면 문서 제목이 파일명이 되도록 title을 잠시 바꿈
 export function printAsPdf(title) {
   const original = document.title
   const paper = document.querySelector('.preview-overlay .doc-paper') || document.querySelector('.doc-paper')
+  if (paper && isMobileDevice()) return savePdfOnMobile(title, paper)
   let squeeze = 0
   try { squeeze = fitSqueeze(paper) } catch { /* 압축 계산 실패해도 인쇄는 진행 */ }
   if (paper && squeeze) paper.style.setProperty('--doc-squeeze', String(squeeze))
