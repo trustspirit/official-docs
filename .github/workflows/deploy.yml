@@ -44,7 +44,7 @@ jobs:
         working-directory: apps/functions
         run: |
           pip install -r requirements.txt
-          python -c "import ast,sys; [ast.parse(open(f).read(), f) for f in ['main.py','auth.py','ai.py','sanitize.py','storage_utils.py']]"
+          python -c "import ast,sys; [ast.parse(open(f).read(), f) for f in ['main.py','auth.py','ai.py','sanitize.py','storage_utils.py','contacts.py','mailer.py']]"
 
       - uses: actions/upload-artifact@v4
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
