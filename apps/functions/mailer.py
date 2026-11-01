@@ -34,7 +34,7 @@ def render_html(*, title: str, message: str, logo_url: str | None, button_url: s
     """공문 안내 메일 본문(HTML). 메일 클라이언트 호환을 위해 표 레이아웃 + 인라인 스타일만 사용."""
     e = html.escape
     paragraphs = "".join(
-        f'<p style="margin:0 0 14px;font-size:15px;line-height:1.75;color:#34363a;text-align:left;word-break:keep-all">'
+        f'<p class="t-body" style="margin:0 0 14px;font-size:15px;line-height:1.75;color:#34363a;text-align:left;word-break:keep-all">'
         f'{e(p).replace(chr(10), "<br>")}</p>'
         for p in message.strip().split("\n\n") if p.strip()
     )
@@ -48,15 +48,23 @@ def render_html(*, title: str, message: str, logo_url: str | None, button_url: s
     ) if button_url else ""
     return f"""<!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="light"><title>{e(title)}</title></head>
-<body style="margin:0;padding:0;background:#eef0f0">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#eef0f0" style="background:#eef0f0"><tr><td align="center" style="padding:24px 12px">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="width:100%;max-width:600px;background:#ffffff;font-family:{FONT}">
+<meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light only">
+<style>
+:root{{color-scheme:light only;supported-color-schemes:light only}}
+@media (prefers-color-scheme: dark){{
+ body,.bg-outer{{background:#eef0f0 !important}}
+ .bg-card{{background:#ffffff !important;background-image:linear-gradient(#ffffff,#ffffff) !important}}
+ .t-body{{color:#34363a !important}} .t-title{{color:#1f2124 !important}} .t-band{{color:#8a8d91 !important}}
+}}
+</style><title>{e(title)}</title></head>
+<body class="bg-outer" style="margin:0;padding:0;background:#eef0f0;background-image:linear-gradient(#eef0f0,#eef0f0)">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#eef0f0" class="bg-outer" style="background:#eef0f0;background-image:linear-gradient(#eef0f0,#eef0f0)"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" class="bg-card" style="width:100%;max-width:600px;background:#ffffff;background-image:linear-gradient(#ffffff,#ffffff);font-family:{FONT}">
 <tr><td style="height:6px;line-height:6px;font-size:0;background:{ACCENT}">&nbsp;</td></tr>
-<tr><td align="center" style="padding:30px 24px 24px;border-bottom:1px solid #e6e8e8">{logo}</td></tr>
-<tr><td align="center" style="padding:13px 24px;border-bottom:1px solid #e6e8e8;font-size:14px;color:#8a8d91">{e(band)}</td></tr>
-<tr><td style="padding:34px 36px 30px">
-<h1 style="margin:0 0 22px;font-size:21px;line-height:1.45;font-weight:600;color:#1f2124;text-align:left;word-break:keep-all">{e(title)}</h1>
+<tr><td align="center" class="bg-card" bgcolor="#ffffff" style="padding:30px 24px 24px;border-bottom:1px solid #e6e8e8;background:#ffffff;background-image:linear-gradient(#ffffff,#ffffff)">{logo}</td></tr>
+<tr><td align="center" class="bg-card t-band" bgcolor="#ffffff" style="padding:13px 24px;border-bottom:1px solid #e6e8e8;font-size:14px;color:#8a8d91;background:#ffffff;background-image:linear-gradient(#ffffff,#ffffff)">{e(band)}</td></tr>
+<tr><td class="bg-card" bgcolor="#ffffff" style="padding:34px 36px 30px;background:#ffffff;background-image:linear-gradient(#ffffff,#ffffff)">
+<h1 class="t-title" style="margin:0 0 22px;font-size:21px;line-height:1.45;font-weight:600;color:#1f2124;text-align:left;word-break:keep-all">{e(title)}</h1>
 {paragraphs}{button}
 </td></tr>
 </table></td></tr></table></body></html>"""
