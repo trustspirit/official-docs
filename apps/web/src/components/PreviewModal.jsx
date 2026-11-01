@@ -29,7 +29,7 @@ export default function PreviewModal({ doc, onClose }) {
         <span className="preview-bar__title">미리보기</span>
         <div className="preview-bar__actions">
           <Button variant="primary" size="sm" onClick={() => printAsPdf(doc.title)}>PDF 저장 / 인쇄</Button>
-          <Button variant="outline" size="sm" onClick={onClose}>닫기</Button>
+          <Button variant="outline" size="sm" onClick={onClose} style={{ background: '#fff', color: '#212225', borderColor: '#fff' }}>닫기</Button>
         </div>
       </div>
       <div className="preview-scroll">
