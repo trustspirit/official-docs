@@ -1,13 +1,54 @@
+import { useMemo } from 'react'
+
 // 2026-03-18 → 2026년 3월 18일
 export const formatDate = (d) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || '')
   return m ? `${m[1]}년 ${+m[2]}월 ${+m[3]}일` : d
 }
 
+// 본문 HTML을 최상위 블록 단위로 나눠 "쪽 나눔 단위(행)"로 묶는다.
+// - 제목(h2/h3)은 바로 다음 블록과 함께
+// - 끝인사·서명(.signature)은 직전 문단과 함께 (서명만 다음 쪽에 혼자 남지 않도록)
+function toRows(html) {
+  if (!html) return []
+  const parsed = new DOMParser().parseFromString(html, 'text/html')
+  const hasLooseText = Array.from(parsed.body.childNodes).some((n) => n.nodeType === 3 && n.textContent.trim())
+  if (hasLooseText) return [{ html, keep: false }]
+  const nodes = Array.from(parsed.body.children)
+  const groups = []
+  let pendingHeading = null
+  for (const node of nodes) {
+    const tag = node.tagName
+    const isHeading = tag === 'H2' || tag === 'H3'
+    if (pendingHeading) {
+      pendingHeading.push(node)
+      groups.push({ nodes: pendingHeading, keep: false })
+      pendingHeading = null
+    } else if (isHeading) {
+      pendingHeading = [node]
+    } else if (node.classList.contains('signature') && groups.length) {
+      const closing = groups.pop()
+      const prev = groups[groups.length - 1]
+      const moved = prev && prev.nodes.length > 1 ? [prev.nodes.pop()] : []
+      groups.push({ nodes: [...moved, ...closing.nodes, node], keep: true })
+    } else {
+      groups.push({ nodes: [node], keep: tag === 'FIGURE' })
+    }
+  }
+  if (pendingHeading) groups.push({ nodes: pendingHeading, keep: false })
+  return groups.map((g) => ({ html: g.nodes.map((n) => n.outerHTML).join(''), keep: g.keep }))
+}
+
 // 공문 용지 — 문서 페이지와 미리보기에서 함께 사용
+// 표 구조(doc-sheet): 인쇄 시 쪽마다 위·아래 여백 행이 반복되어 브라우저의 @page 여백 설정과 무관하게 여백이 일정하다.
 export default function DocumentPaper({ doc }) {
+  const rows = useMemo(() => toRows(doc.content), [doc.content])
   return (
   <div className="doc-paper">
+   <table className="doc-sheet">
+    <thead className="doc-sheet__head"><tr className="doc-sheet__row"><td className="doc-sheet__cell" /></tr></thead>
+    <tbody className="doc-sheet__body">
+      <tr className="doc-sheet__row"><td className="doc-sheet__cell">
     {/* 공문 헤더 */}
     <div className={`doc-header${doc.logo_style === 'name' ? ' doc-header--name' : ''}`}>
       {doc.logo_style === 'name' ? (
@@ -51,14 +92,15 @@ export default function DocumentPaper({ doc }) {
     </div>
 
     <hr className="doc-divider" />
-
-    {/* AI 생성 본문 */}
-    <div
-      className="doc-body"
-      dangerouslySetInnerHTML={{ __html: doc.content }}
-    />
-
-    <hr className="doc-footer-divider" />
+      </td></tr>
+      {rows.map((r, i) => (
+        <tr className={`doc-sheet__row${r.keep ? ' is-keep' : ''}`} key={i}>
+          <td className="doc-sheet__cell doc-body" dangerouslySetInnerHTML={{ __html: r.html }} />
+        </tr>
+      ))}
+    </tbody>
+    <tfoot className="doc-sheet__foot"><tr className="doc-sheet__row"><td className="doc-sheet__cell" /></tr></tfoot>
+   </table>
   </div>
   )
 }

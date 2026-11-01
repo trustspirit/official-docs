@@ -1,8 +1,9 @@
-// A4 인쇄 영역 (styles/global.css 의 @page 여백·.doc-paper 인쇄 패딩과 일치해야 함)
+// A4 인쇄 영역 (styles/global.css 의 인쇄 규칙과 일치해야 함): @page 여백 0,
+// 좌우는 .doc-paper 패딩 18mm, 상·하는 쪽마다 16mm 여백 행
 const MM = 96 / 25.4
-const PAGE_W = (210 - 2 * 10) * MM // @page 좌우 여백 10mm
-const PAGE_H = (297 - 2 * 12) * MM // @page 상하 여백 12mm
-const PAPER_PAD = '14mm 16mm'
+const PAGE_W = 210 * MM
+const PAGE_H = (297 - 2 * 16) * MM
+const PAPER_PAD = '0 18mm'
 const LEVELS = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1] // 필요한 만큼만 압축
 const SAFETY = 0.97 // 화면/인쇄 레이아웃 오차 여유
 
@@ -21,13 +22,25 @@ function measure(paper, squeeze) {
   return h
 }
 
-// 한 장에 들어갈 수 있는 분량이면 줄간격·문단 간격을 필요한 만큼만 줄인다.
-// 압축해도 한 장을 넘으면 원래 간격 그대로 여러 장으로 출력한다.
-export function fitToOnePage(paper) {
+// 분량에 맞춰 줄간격·문단 간격·글자 크기(최대 8%)를 필요한 만큼만 줄인다.
+// - 한 장을 살짝 넘으면 한 장에 맞춘다.
+// - 여러 장일 때 마지막 장이 20% 이하만 차면 한 장 적은 분량에 맞춘다(끝인사·서명만 따로 남는 경우 등).
+// - 그래도 안 되거나 마지막 장이 충분히 차 있으면 원래 간격 그대로 쪽을 나눈다.
+const LAST_PAGE_MAX_FILL = 0.2 // 마지막 장이 이 비율 이하(한두 줄~몇 줄)만 차면 줄여서 합침
+const SINGLE_PAGE_MAX = 1.2 // 한 장 기준 120% 이하로 넘칠 때만 한 장으로 압축
+const MULTI_PAGE_SAFETY = 0.95 // 쪽 경계에서 생기는 빈 공간 여유
+
+export function fitSqueeze(paper) {
   if (!paper) return 0
-  const limit = PAGE_H * SAFETY
-  if (measure(paper, 0) <= limit) return 0
-  const level = LEVELS.find((s) => s > 0 && measure(paper, s) <= limit)
+  const page = PAGE_H * SAFETY
+  const pages = measure(paper, 0) / page
+  if (pages <= 1) return 0
+  const target = Math.floor(pages)
+  const fill = pages - target
+  const squeezable = target === 1 ? pages <= SINGLE_PAGE_MAX : fill > 0 && fill <= LAST_PAGE_MAX_FILL
+  if (!squeezable) return 0
+  const cap = target === 1 ? page : page * target * MULTI_PAGE_SAFETY
+  const level = LEVELS.find((s) => s > 0 && measure(paper, s) <= cap)
   return level ?? 0
 }
 
@@ -35,7 +48,7 @@ export function fitToOnePage(paper) {
 export function printAsPdf(title) {
   const original = document.title
   const paper = document.querySelector('.preview-overlay .doc-paper') || document.querySelector('.doc-paper')
-  const squeeze = fitToOnePage(paper)
+  const squeeze = fitSqueeze(paper)
   if (paper && squeeze) paper.style.setProperty('--doc-squeeze', String(squeeze))
   const restore = () => {
     document.title = original

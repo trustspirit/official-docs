@@ -327,7 +327,7 @@ input, textarea, select { font-family: inherit; }
 }
 
 .doc-body {
-  font-size: 0.95rem;
+  font-size: calc(0.95rem * (1 - 0.08 * var(--doc-squeeze, 0)));
   line-height: calc(1.95 - 0.4 * var(--doc-squeeze, 0));
   color: #212225;
   font-family: "Nanum Myeongjo", "Ensign:Serif", Maruburi, Georgia, serif;
@@ -357,7 +357,8 @@ input, textarea, select { font-family: inherit; }
 .doc-body .signature { margin-top: 1rem; }
 .doc-body .signature p { margin-bottom: 0; }
 /* 본문 끝의 여백 제거 — 용지 상·하 여백이 동일하게 보이도록 */
-.doc-body > :last-child { margin-bottom: 0; }
+.doc-sheet__row:last-child .doc-body > :last-child { margin-bottom: 0; }
+.doc-body > h2:first-child, .doc-body > h3:first-child { margin-top: calc(1.4rem * (1 - 0.5 * var(--doc-squeeze, 0))); }
 
 .doc-footer-divider { display: none; }
 
@@ -438,19 +439,21 @@ input, textarea, select { font-family: inherit; }
   .preview-scroll { overflow: visible; padding: 0; }
   body { background: #fff; }
   .doc-page-wrapper { padding: 0; max-width: 100%; }
-  .doc-paper {
-    border: none;
-    box-shadow: none;
-    padding: 14mm 16mm;
-  }
-  @page {
-    size: A4;
-    margin: 12mm 10mm;
-  }
+  /* 좌우 여백은 패딩, 상·하 여백은 쪽마다 반복되는 표 머리/꼬리 여백 행으로 처리 */
+  .doc-paper { border: none; box-shadow: none; padding: 0 18mm; }
+  .doc-paper .doc-sheet__head .doc-sheet__cell, .doc-paper .doc-sheet__foot .doc-sheet__cell { height: 16mm; }
+  @page { size: A4; margin: 0; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .doc-body h2 { break-after: avoid; }
   .doc-body p  { orphans: 3; widows: 3; }
+  .doc-sheet__row.is-keep { break-inside: avoid; }
+  .doc-sheet__row { break-inside: auto; }
+  .doc-sheet__row.is-keep { break-inside: avoid; }
 }
+/* 화면·인쇄 공통 표 구조 — 실제 <table>이어야 인쇄 시 thead/tfoot 여백이 쪽마다 반복됨 (화면에서는 높이 0) */
+.doc-sheet { width: 100%; table-layout: fixed; border-collapse: collapse; border-spacing: 0; }
+.doc-sheet td { padding: 0; vertical-align: top; }
+.doc-sheet__head .doc-sheet__cell, .doc-sheet__foot .doc-sheet__cell { height: 0; }
 
 /* ── 본문 이미지 ─────────────────────────────────────── */
 .doc-body figure, .body-editor figure { margin: 1.4rem 0 1.6rem; text-align: center; break-inside: avoid; }
