@@ -516,7 +516,8 @@ def send_document(doc_id: str):
     try:
         sender = mailer.sender_address()
         msg = mailer.build_message(
-            sender=sender, subject=subject, body=message, bcc=recipients, link=link, pdf=pdf,
+            sender=sender, subject=subject, title=doc.get("title", ""), body=message, bcc=recipients, link=link,
+            logo_url=f"{_public_base()}/img/logo-name-email.png", pdf=pdf,
             pdf_name=f"{(doc.get('title') or 'document').replace('/', '-')[:60]}.pdf",
         )
         mailer.send(msg, recipients)

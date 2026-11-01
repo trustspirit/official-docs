@@ -25,18 +25,50 @@ def sender_address() -> str:
     return _credentials()[0]
 
 
-def build_message(*, sender: str, subject: str, body: str, bcc: list[str],
-                  link: str | None = None, pdf: bytes | None = None, pdf_name: str = "document.pdf") -> EmailMessage:
+ACCENT = "#3a7a9a"
+FONT = "-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',Arial,sans-serif"
+
+
+def render_html(*, title: str, message: str, logo_url: str | None, button_url: str | None,
+                button_label: str = "공문 보기", band: str = "지역칠십인 공문") -> str:
+    """공문 안내 메일 본문(HTML). 메일 클라이언트 호환을 위해 표 레이아웃 + 인라인 스타일만 사용."""
+    e = html.escape
+    paragraphs = "".join(
+        f'<p style="margin:0 0 14px;font-size:15px;line-height:1.75;color:#34363a;text-align:left;word-break:keep-all">'
+        f'{e(p).replace(chr(10), "<br>")}</p>'
+        for p in message.strip().split("\n\n") if p.strip()
+    )
+    logo = (f'<img src="{e(logo_url, quote=True)}" width="170" alt="예수 그리스도 후기 성도 교회" '
+            f'style="display:block;margin:0 auto;border:0;height:auto">') if logo_url else ""
+    button = (
+        f'<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:26px auto 8px"><tr>'
+        f'<td align="center" bgcolor="{ACCENT}" style="background:{ACCENT}">'
+        f'<a href="{e(button_url, quote=True)}" style="display:inline-block;padding:15px 48px;font-family:{FONT};'
+        f'font-size:16px;color:#ffffff;text-decoration:none">{e(button_label)}</a></td></tr></table>'
+    ) if button_url else ""
+    return f"""<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light"><title>{e(title)}</title></head>
+<body style="margin:0;padding:0;background:#eef0f0">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#eef0f0" style="background:#eef0f0"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="width:100%;max-width:600px;background:#ffffff;font-family:{FONT}">
+<tr><td style="height:6px;line-height:6px;font-size:0;background:{ACCENT}">&nbsp;</td></tr>
+<tr><td align="center" style="padding:30px 24px 24px;border-bottom:1px solid #e6e8e8">{logo}</td></tr>
+<tr><td align="center" style="padding:13px 24px;border-bottom:1px solid #e6e8e8;font-size:14px;color:#8a8d91">{e(band)}</td></tr>
+<tr><td style="padding:34px 36px 30px">
+<h1 style="margin:0 0 22px;font-size:21px;line-height:1.45;font-weight:600;color:#1f2124;text-align:left;word-break:keep-all">{e(title)}</h1>
+{paragraphs}{button}
+</td></tr>
+</table></td></tr></table></body></html>"""
+
+
+def build_message(*, sender: str, subject: str, title: str, body: str, bcc: list[str],
+                  link: str | None = None, logo_url: str | None = None,
+                  pdf: bytes | None = None, pdf_name: str = "document.pdf") -> EmailMessage:
     subject = " ".join(subject.split())  # 줄바꿈 제거 (헤더 주입 방지)
     text = body.strip()
     if link:
         text += f"\n\n공문 보기: {link}"
-    paragraphs = "".join(
-        f"<p style=\"margin:0 0 1em;line-height:1.7\">{html.escape(p).replace(chr(10), '<br>')}</p>"
-        for p in text.split("\n\n") if p.strip()
-    )
-    if link:  # 링크는 클릭 가능하게
-        paragraphs = paragraphs.replace(html.escape(link), f'<a href="{html.escape(link, quote=True)}">{html.escape(link)}</a>')
 
     msg = EmailMessage(policy=SMTP)
     msg["From"] = sender
@@ -44,7 +76,10 @@ def build_message(*, sender: str, subject: str, body: str, bcc: list[str],
     msg["Bcc"] = ", ".join(bcc)
     msg["Subject"] = subject
     msg.set_content(text)
-    msg.add_alternative(f"<div style=\"font-family:sans-serif;font-size:15px\">{paragraphs}</div>", subtype="html")
+    msg.add_alternative(
+        render_html(title=title or subject, message=body, logo_url=logo_url, button_url=link),
+        subtype="html",
+    )
     if pdf:
         msg.add_attachment(pdf, maintype="application", subtype="pdf", filename=pdf_name)
     return msg
