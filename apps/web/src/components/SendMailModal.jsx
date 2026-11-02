@@ -33,6 +33,7 @@ export default function SendMailModal({ doc, onClose }) {
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const [done, setDone] = useState('')
+  const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
     listContacts()
@@ -62,11 +63,17 @@ export default function SendMailModal({ doc, onClose }) {
 
   const toggle = (key) => setSelected((s) => (s.includes(key) ? s.filter((k) => k !== key) : [...s, key]))
 
-  const handleSend = async () => {
+  // 모바일 브라우저는 window.confirm 을 띄우지 않고 false 를 반환하므로, 모달 안에서 직접 확인을 받는다
+  const askConfirm = () => {
     setError('')
     if (!subject.trim()) return setError('메일 제목을 입력하세요')
     if (!total) return setError('수신 대상을 한 개 이상 선택하세요')
-    if (!confirm(test ? `"${subject}" 메일을 테스트로 나에게만 발송합니다.\n보낼까요?` : `"${subject}" 메일을 ${total}명에게 BCC로 발송합니다.\n보낼까요?`)) return
+    setConfirming(true)
+  }
+
+  const handleSend = async () => {
+    setError('')
+    setConfirming(false)
     try {
       let pdf_base64
       if (mode === 'pdf') {
@@ -138,10 +145,16 @@ export default function SendMailModal({ doc, onClose }) {
               </label>
             </div>
 
+            {confirming && !busy && (
+              <div className="alert alert-error" role="alert">
+                {test ? `"${subject}" 메일을 테스트로 나에게만 발송합니다.` : `"${subject}" 메일을 ${total}명에게 BCC로 발송합니다.`} 보낼까요?
+              </div>
+            )}
+
             <div className="modal-actions">
-              <Button variant="outline" onClick={onClose} disabled={!!busy}>취소</Button>
-              <Button variant="primary" onClick={handleSend} disabled={!!busy || !total}>
-                {busy || (test ? '나에게 테스트 발송' : `${total}명에게 발송`)}
+              <Button variant="outline" onClick={confirming && !busy ? () => setConfirming(false) : onClose} disabled={!!busy}>취소</Button>
+              <Button variant="primary" onClick={confirming ? handleSend : askConfirm} disabled={!!busy || !total}>
+                {busy || (confirming ? '확인, 발송' : test ? '나에게 테스트 발송' : `${total}명에게 발송`)}
               </Button>
             </div>
           </>
