@@ -98,6 +98,22 @@ function computeBreaks(clone, totalH) {
   return breaks
 }
 
+// 이미지로 캡처한 PDF에서도 링크(웹·이메일·전화)가 동작하도록, 본문 <a>의 화면 위치(줄마다 사각형)를 모은다
+const LINK_RE = /^(https?:|mailto:|tel:)/i
+function collectLinks(clone) {
+  const box = clone.getBoundingClientRect()
+  const out = []
+  clone.querySelectorAll('a[href]').forEach((a) => {
+    const url = a.getAttribute('href')
+    if (!LINK_RE.test(url || '')) return
+    Array.from(a.getClientRects()).forEach((r) => {
+      if (r.width < 1 || r.height < 1) return
+      out.push({ url, x: r.left - box.left, y: r.top - box.top, w: r.width, h: r.height })
+    })
+  })
+  return out
+}
+
 export async function buildPdfBlob(paper) {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')])
   const { iframe, doc, clone } = await createFrame(paper)
@@ -109,12 +125,15 @@ export async function buildPdfBlob(paper) {
       windowWidth: A4_W_PX, width: A4_W_PX, scrollX: 0, scrollY: 0,
     })
     const breaks = computeBreaks(clone, totalH)
+    const links = collectLinks(clone)
     const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
     const mmPerPx = 210 / A4_W_PX
+    let pageNo = 0
     for (let i = 0; i < breaks.length - 1; i++) {
       const sy = Math.round(breaks[i] * SCALE)
       const sh = Math.min(Math.round((breaks[i + 1] - breaks[i]) * SCALE), canvas.height - sy)
       if (sh <= 0) continue
+      pageNo += 1
       const page = document.createElement('canvas')
       page.width = canvas.width
       page.height = sh
@@ -122,9 +141,15 @@ export async function buildPdfBlob(paper) {
       ctx.fillStyle = '#fff'
       ctx.fillRect(0, 0, page.width, page.height)
       ctx.drawImage(canvas, 0, sy, canvas.width, sh, 0, 0, canvas.width, sh)
-      if (i > 0) pdf.addPage()
+      if (pageNo > 1) pdf.addPage()
       const data = page.toDataURL('image/jpeg', 0.92)
       pdf.addImage(data, 'JPEG', 0, MARGIN_MM, 210, (sh / SCALE) * mmPerPx)
+      // 이 쪽에 그려진 링크 위치에 클릭 영역을 얹는다 (줄의 중앙이 이 쪽 범위에 있는 것만)
+      links
+        .filter((l) => l.y + l.h / 2 >= breaks[i] && l.y + l.h / 2 < breaks[i + 1])
+        .forEach((l) => {
+          pdf.link(l.x * mmPerPx, MARGIN_MM + (l.y - breaks[i]) * mmPerPx, l.w * mmPerPx, l.h * mmPerPx, { url: l.url })
+        })
     }
     return pdf.output('blob')
   } finally {
