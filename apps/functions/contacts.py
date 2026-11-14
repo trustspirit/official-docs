@@ -90,6 +90,28 @@ def group_roles(keys: list[str], groups: list[dict]) -> list[str]:
     return [r for g in groups if g["key"] in wanted for r in g["roles"]]
 
 
+def stake_options(contacts: list[dict]) -> list[str]:
+    """주소록에 있는 스테이크/지방부 목록 (가나다순). 미지정은 포함하지 않는다."""
+    return sorted({(c.get("stake") or "").strip() for c in contacts} - {""})
+
+
+def fill_stakes(contacts: list[dict], known: list[dict]) -> None:
+    """stake 가 빈 연락처를, 같은 단위(unit)를 가진 기존 연락처의 stake 로 채운다 (제자리 수정)."""
+    unit_stake = {c.get("unit", ""): c["stake"] for c in known if c.get("stake") and c.get("unit")}
+    for s in stake_options(known):
+        unit_stake.setdefault(s, s)  # 단위가 스테이크 자체인 경우 (스테이크 회장 등)
+    for c in contacts:
+        if not c.get("stake"):
+            c["stake"] = unit_stake.get(c.get("unit", ""), "")
+
+
+def filter_recipients(contacts: list[dict], roles: list[str], stakes: list[str]) -> list[dict]:
+    """직책 그룹 ∩ 스테이크. stakes 가 비면 전체, '' 은 '스테이크 미지정' 연락처를 뜻한다."""
+    role_set, stake_set = set(roles), set(stakes)
+    return [c for c in contacts
+            if c.get("role") in role_set and (not stake_set or (c.get("stake") or "") in stake_set)]
+
+
 def unique_emails(contacts: list[dict]) -> list[str]:
     """같은 주소가 여러 직책에 있어도 한 번만 (대소문자 무시, 순서 유지)."""
     out: list[str] = []

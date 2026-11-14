@@ -659,5 +659,8 @@ input, textarea, select { font-family: inherit; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
 .check-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0; font-size: 0.92rem; cursor: pointer; }
 .check-row__count { margin-left: auto; color: #888; font-size: 0.8rem; }
-.contact-form { display: grid; grid-template-columns: 1fr 1.2fr 1fr 1.6fr auto; gap: 0.5rem; margin-bottom: 1.5rem; padding: 0.8rem; }
+.stake-filter { margin: 0.5rem 0; padding: 0.5rem 0.7rem; border: 1px solid #ddd; border-radius: 3px; }
+.stake-filter summary { cursor: pointer; font-size: 0.92rem; font-weight: 600; }
+.stake-filter[open] summary { margin-bottom: 0.3rem; }
+.contact-form { display: grid; grid-template-columns: 1fr 1.1fr 1.3fr 1fr 1.5fr auto; gap: 0.5rem; margin-bottom: 1.5rem; padding: 0.8rem; }
 @media (max-width: 700px) { .contact-form { grid-template-columns: 1fr; } }

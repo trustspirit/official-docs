@@ -68,5 +68,6 @@ export async function uploadImage(file) {
 export const listContacts = () => api.get('/contacts')
 export const addContact = (data) => api.post('/contacts', data)
 export const deleteContact = (id) => api.delete(`/contacts/${id}`)
+export const updateContactStake = (id, stake) => api.put(`/contacts/${id}`, { stake })
 export const importContactsCsv = (csv) => api.post('/contacts/import', { csv })
 export const sendDocumentMail = (id, data) => api.post(`/documents/${id}/send`, data)

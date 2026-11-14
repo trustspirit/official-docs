@@ -383,7 +383,7 @@ def _admin_or_error():
 
 def _contact_to_dict(snap) -> dict:
     d = snap.to_dict() or {}
-    return {"id": snap.id, **{k: d.get(k, "") for k in ("unit", "role", "name", "phone", "email", "source")}}
+    return {"id": snap.id, **{k: d.get(k, "") for k in ("unit", "stake", "role", "name", "phone", "email", "source")}}
 
 
 def _all_contacts() -> list[dict]:
@@ -403,7 +403,8 @@ def contacts_collection():
 
     if flask_request.method == "GET":
         items = _all_contacts()
-        return _json({"groups": contacts_lib.build_groups(items), "contacts": items})
+        return _json({"groups": contacts_lib.build_groups(items), "stakes": contacts_lib.stake_options(items),
+                      "contacts": items})
 
     body = flask_request.get_json(silent=True) or {}
     role = str(body.get("role", "")).strip()
@@ -413,21 +414,30 @@ def contacts_collection():
     if not contacts_lib.valid_email(email):
         return _json({"detail": "이메일 형식이 올바르지 않습니다"}, 400)
     data = {
-        "unit": str(body.get("unit", "")).strip(), "role": role,
+        "unit": str(body.get("unit", "")).strip(), "stake": str(body.get("stake", "")).strip()[:100], "role": role,
         "name": str(body.get("name", "")).strip(), "phone": str(body.get("phone", "")).strip(),
         "email": email, "source": "manual",
     }
+    if not data["stake"]:
+        contacts_lib.fill_stakes([data], _all_contacts())
     _, ref = db.collection(contacts_lib.CONTACTS_COLLECTION).add(data)
     return _json({"id": ref.id, **data}, 201)
 
 
-@flask_app.route("/api/contacts/<contact_id>", methods=["DELETE", "OPTIONS"])
-def delete_contact(contact_id: str):
+@flask_app.route("/api/contacts/<contact_id>", methods=["PUT", "DELETE", "OPTIONS"])
+def contact_item(contact_id: str):
     if flask_request.method == "OPTIONS":
         return _preflight()
     denied = _admin_or_error()
     if denied:
         return denied
+    if flask_request.method == "PUT":  # 현재는 스테이크/지방부 지정만 수정한다
+        ref = db.collection(contacts_lib.CONTACTS_COLLECTION).document(contact_id)
+        if not ref.get().exists:
+            return _json({"detail": "연락처를 찾을 수 없습니다"}, 404)
+        stake = str((flask_request.get_json(silent=True) or {}).get("stake", "")).strip()[:100]
+        ref.update({"stake": stake})
+        return _json({"id": contact_id, "stake": stake})
     db.collection(contacts_lib.CONTACTS_COLLECTION).document(contact_id).delete()
     return _json({"message": "삭제되었습니다"})
 
@@ -451,7 +461,10 @@ def import_contacts():
         return _json({"detail": "가져올 연락처가 없습니다", "skipped": skipped}, 400)
 
     col = db.collection(contacts_lib.CONTACTS_COLLECTION)
-    old = [s.reference for s in col.stream() if (s.to_dict() or {}).get("source", "csv") == "csv"]
+    snaps = list(col.stream())
+    # CSV 에는 스테이크 열이 없으므로, 기존 주소록의 단위→스테이크 지정을 이어받는다
+    contacts_lib.fill_stakes(parsed, [_contact_to_dict(s) for s in snaps])
+    old = [s.reference for s in snaps if (s.to_dict() or {}).get("source", "csv") == "csv"]
     ops = [("delete", r, None) for r in old] + [("set", col.document(), {**c, "source": "csv"}) for c in parsed]
     for i in range(0, len(ops), 400):  # 배치 한도(500) 안쪽으로 나눠 기록
         batch = db.batch()
@@ -479,6 +492,8 @@ def send_document(doc_id: str):
     message = str(body.get("message", "")).strip()
     mode = body.get("mode")
     group_keys = body.get("groups") or []
+    stakes = body.get("stakes") or []
+    stakes = [str(x).strip() for x in stakes] if isinstance(stakes, list) else []
     if not subject:
         return _json({"detail": "메일 제목을 입력하세요"}, 400)
     if mode not in ("link", "pdf"):
@@ -512,9 +527,9 @@ def send_document(doc_id: str):
     if test:
         recipients = [current_admin_email(flask_request)]
     else:
-        recipients = contacts_lib.unique_emails([c for c in all_contacts if c["role"] in roles])
+        recipients = contacts_lib.unique_emails(contacts_lib.filter_recipients(all_contacts, roles, stakes))
     if not recipients or not recipients[0]:
-        return _json({"detail": "선택한 직책에 등록된 이메일이 없습니다"}, 400)
+        return _json({"detail": "선택한 직책·스테이크에 등록된 이메일이 없습니다"}, 400)
 
     try:
         sender = mailer.sender_address()

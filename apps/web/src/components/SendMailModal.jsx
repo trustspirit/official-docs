@@ -25,6 +25,8 @@ export default function SendMailModal({ doc, onClose }) {
   const [groups, setGroups] = useState([])
   const [contacts, setContacts] = useState([])
   const [selected, setSelected] = useState([])
+  const [stakes, setStakes] = useState([])
+  const [selectedStakes, setSelectedStakes] = useState([]) // 비어 있으면 전체, '' 은 미지정
   const [test, setTest] = useState(false)
   const [subject, setSubject] = useState(doc.title)
   const [message, setMessage] = useState(() => defaultMessage(doc.is_published ? 'link' : 'pdf'))
@@ -37,7 +39,7 @@ export default function SendMailModal({ doc, onClose }) {
 
   useEffect(() => {
     listContacts()
-      .then((r) => { setGroups(r.groups); setContacts(r.contacts) })
+      .then((r) => { setGroups(r.groups); setStakes(r.stakes || []); setContacts(r.contacts) })
       .catch((e) => setError(e.message))
   }, [])
 
@@ -47,12 +49,17 @@ export default function SendMailModal({ doc, onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose, busy])
 
-  // 그룹별 인원 / 선택된 그룹의 중복 제거된 수신 인원
-  const countOf = (g) => new Set(contacts.filter((c) => g.roles.includes(c.role)).map((c) => c.email)).size
+  // 스테이크 필터를 먼저 적용한 뒤 그룹별 인원 / 선택된 그룹의 중복 제거된 수신 인원을 센다 (서버와 같은 규칙)
+  const inStakes = useMemo(
+    () => (selectedStakes.length ? contacts.filter((c) => selectedStakes.includes(c.stake || '')) : contacts),
+    [contacts, selectedStakes],
+  )
+  const hasUnassigned = contacts.some((c) => !c.stake)
+  const countOf = (g) => new Set(inStakes.filter((c) => g.roles.includes(c.role)).map((c) => c.email)).size
   const groupTotal = useMemo(() => {
     const roles = groups.filter((g) => selected.includes(g.key)).flatMap((g) => g.roles)
-    return new Set(contacts.filter((c) => roles.includes(c.role)).map((c) => c.email)).size
-  }, [groups, contacts, selected])
+    return new Set(inStakes.filter((c) => roles.includes(c.role)).map((c) => c.email)).size
+  }, [groups, inStakes, selected])
   const total = test ? 1 : groupTotal
 
   // 전달 방식을 바꾸면, 내용을 직접 고치지 않은 경우에 한해 기본 안내문도 함께 바꾼다
@@ -62,6 +69,8 @@ export default function SendMailModal({ doc, onClose }) {
   }
 
   const toggle = (key) => setSelected((s) => (s.includes(key) ? s.filter((k) => k !== key) : [...s, key]))
+  const toggleStake = (name) =>
+    setSelectedStakes((s) => (s.includes(name) ? s.filter((k) => k !== name) : [...s, name]))
 
   // 모바일 브라우저는 window.confirm 을 띄우지 않고 false 를 반환하므로, 모달 안에서 직접 확인을 받는다
   const askConfirm = () => {
@@ -83,7 +92,7 @@ export default function SendMailModal({ doc, onClose }) {
         pdf_base64 = await blobToBase64(blob)
       }
       setBusy('발송 중…')
-      const r = await sendDocumentMail(doc.id, { subject, message, mode, groups: selected, test, pdf_base64 })
+      const r = await sendDocumentMail(doc.id, { subject, message, mode, groups: selected, stakes: selectedStakes, test, pdf_base64 })
       setDone(r.test ? `테스트 메일을 ${r.to} 로 발송했습니다.` : `${r.sent}명에게 발송했습니다.`)
     } catch (e) {
       setError(e.message)
@@ -121,6 +130,24 @@ export default function SendMailModal({ doc, onClose }) {
                   <span className="check-row__count">{countOf(g)}명</span>
                 </label>
               ))}
+              {stakes.length > 0 && (
+                <details className="stake-filter" style={test ? { opacity: 0.4 } : undefined}>
+                  <summary>
+                    스테이크 / 지방부: {selectedStakes.length ? `${selectedStakes.length}곳 선택` : '전체'}
+                  </summary>
+                  <label className="check-row">
+                    <input type="checkbox" disabled={test} checked={!selectedStakes.length} onChange={() => setSelectedStakes([])} />
+                    <span>전체</span>
+                  </label>
+                  {[...stakes, ...(hasUnassigned ? [''] : [])].map((name) => (
+                    <label key={name || '__none'} className="check-row">
+                      <input type="checkbox" disabled={test} checked={selectedStakes.includes(name)} onChange={() => toggleStake(name)} />
+                      <span>{name || '미지정'}</span>
+                      <span className="check-row__count">{new Set(contacts.filter((c) => (c.stake || '') === name).map((c) => c.email)).size}명</span>
+                    </label>
+                  ))}
+                </details>
+              )}
               <p className="form-hint">{test ? '테스트 발송: 로그인한 내 이메일로만 전달됩니다' : `선택한 직책의 모든 분께 숨은 참조(BCC)로 발송됩니다 · 총 ${total}명`}</p>
             </div>
 
