@@ -402,13 +402,14 @@ def contacts_collection():
         return denied
 
     if flask_request.method == "GET":
-        return _json({"groups": contacts_lib.ROLE_GROUPS, "contacts": _all_contacts()})
+        items = _all_contacts()
+        return _json({"groups": contacts_lib.build_groups(items), "contacts": items})
 
     body = flask_request.get_json(silent=True) or {}
     role = str(body.get("role", "")).strip()
     email = str(body.get("email", "")).strip().lower()
-    if role not in contacts_lib.ALL_ROLES:
-        return _json({"detail": "직책이 올바르지 않습니다"}, 400)
+    if not contacts_lib.valid_role(role):
+        return _json({"detail": "직책을 입력하세요 (50자 이내)"}, 400)
     if not contacts_lib.valid_email(email):
         return _json({"detail": "이메일 형식이 올바르지 않습니다"}, 400)
     data = {
@@ -486,7 +487,9 @@ def send_document(doc_id: str):
         return _json({"detail": "제목 또는 내용이 너무 깁니다"}, 400)
 
     test = body.get("test") is True  # 테스트: 주소록 대신 로그인한 관리자 본인에게만 발송
-    roles = contacts_lib.group_roles(group_keys if isinstance(group_keys, list) else [])
+    all_contacts = [] if test else _all_contacts()
+    roles = contacts_lib.group_roles(group_keys if isinstance(group_keys, list) else [],
+                                     contacts_lib.build_groups(all_contacts))
     if not test and not roles:
         return _json({"detail": "수신 대상을 한 개 이상 선택하세요"}, 400)
 
@@ -509,7 +512,7 @@ def send_document(doc_id: str):
     if test:
         recipients = [current_admin_email(flask_request)]
     else:
-        recipients = contacts_lib.unique_emails([c for c in _all_contacts() if c["role"] in roles])
+        recipients = contacts_lib.unique_emails([c for c in all_contacts if c["role"] in roles])
     if not recipients or not recipients[0]:
         return _json({"detail": "선택한 직책에 등록된 이메일이 없습니다"}, 400)
 

@@ -79,10 +79,10 @@ export default function Contacts() {
         {notice && <div className="alert alert-success">{notice}</div>}
 
         <form className="admin-wrapper contact-form" onSubmit={handleAdd}>
-          <select className="form-select" required value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-            <option value="">직책 선택</option>
-            {roles.map((r) => <option key={r} value={r}>{r}</option>)}
-          </select>
+          <input className="form-input" required list="contact-roles" maxLength={50} placeholder="직책 (선택 또는 입력)" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} />
+          <datalist id="contact-roles">
+            {roles.map((r) => <option key={r} value={r} />)}
+          </datalist>
           <input className="form-input" placeholder="단위(와드/스테이크)" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
           <input className="form-input" placeholder="이름" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <input className="form-input" type="email" required placeholder="이메일" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />

@@ -113,6 +113,7 @@ export default function SendMailModal({ doc, onClose }) {
                 <input type="checkbox" checked={test} onChange={(e) => setTest(e.target.checked)} />
                 <span>테스트: 나에게만 발송</span>
               </label>
+              {!groups.length && <p className="form-hint">주소록에 등록된 연락처가 없습니다</p>}
               {groups.map((g) => (
                 <label key={g.key} className="check-row" style={test ? { opacity: 0.4 } : undefined}>
                   <input type="checkbox" disabled={test} checked={selected.includes(g.key)} onChange={() => toggle(g.key)} />

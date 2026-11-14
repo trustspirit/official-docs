@@ -6,13 +6,21 @@ import re
 
 CONTACTS_COLLECTION = "contacts"
 
-# 수신 그룹: 발송 화면에서 한 번에 켜고 끄는 단위. 직책 이름은 CSV의 "직책 이름" 값과 같아야 한다.
+# 미리 정의한 수신 그룹: 여러 직책을 체크박스 하나로 묶고 표시 순서를 정한다.
+# 여기에 없는 직책도 주소록에 있으면 build_groups() 가 직책별 그룹을 자동으로 만든다.
 ROLE_GROUPS = [
     {"key": "area_seventy", "label": "지역칠십인", "roles": ["지역칠십인"]},
     {"key": "stake_district", "label": "스테이크 회장 / 지방부 회장", "roles": ["스테이크 회장", "지방부 회장"]},
     {"key": "bishop_branch", "label": "감독 / 지부 회장", "roles": ["감독", "지부 회장"]},
+    {"key": "clerk", "label": "와드 서기 / 지부 서기", "roles": ["와드 서기", "지부 서기"]},
+    {"key": "single_adult", "label": "독신 성인 대표 / 고문",
+     "roles": ["스테이크 독신 성인 대표", "스테이크 독신 성인 고문", "지방부 독신 성인 고문"]},
 ]
 ALL_ROLES = [r for g in ROLE_GROUPS for r in g["roles"]]
+
+# 지도자 연락처 CSV 가져오기에서 받는 직책 (내보내기에 다른 부름이 많이 섞여 있어 제한한다)
+LEADER_CSV_ROLES = ["지역칠십인", "스테이크 회장", "지방부 회장", "감독", "지부 회장"]
+MAX_ROLE_LEN = 50
 
 _EMAIL_RE = re.compile(r"^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$")
 
@@ -41,7 +49,7 @@ def parse_csv(text: str) -> tuple[list[dict], list[str]]:
         role = (row.get(COL_ROLE) or "").strip()
         email = (row.get(COL_EMAIL) or "").strip().lower()
         name = (row.get(COL_NAME) or "").strip()
-        if role not in ALL_ROLES:
+        if role not in LEADER_CSV_ROLES:
             skipped.append(f"{i}행 {name or '(이름 없음)'}: 지원하지 않는 직책 '{role}'")
             continue
         if not valid_email(email):
@@ -60,10 +68,26 @@ def parse_csv(text: str) -> tuple[list[dict], list[str]]:
     return contacts, skipped
 
 
-def group_roles(keys: list[str]) -> list[str]:
+def valid_role(value: str) -> bool:
+    return 0 < len(value) <= MAX_ROLE_LEN
+
+
+def build_groups(contacts: list[dict]) -> list[dict]:
+    """주소록 → 발송 화면 체크박스 목록.
+
+    미리 정의한 그룹은 연락처가 있을 때만, 그 외 직책은 'role:<직책>' key 로 하나씩 만든다.
+    """
+    present = {c.get("role", "") for c in contacts} - {""}
+    groups = [g for g in ROLE_GROUPS if present & set(g["roles"])]
+    extra = sorted(present - set(ALL_ROLES))
+    groups += [{"key": f"role:{r}", "label": r, "roles": [r]} for r in extra]
+    return groups
+
+
+def group_roles(keys: list[str], groups: list[dict]) -> list[str]:
     """선택된 그룹 key 목록 → 직책 목록. 알 수 없는 key 는 무시."""
     wanted = set(keys)
-    return [r for g in ROLE_GROUPS if g["key"] in wanted for r in g["roles"]]
+    return [r for g in groups if g["key"] in wanted for r in g["roles"]]
 
 
 def unique_emails(contacts: list[dict]) -> list[str]:
